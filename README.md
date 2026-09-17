@@ -1,0 +1,542 @@
+# neotasks.nvim
+
+A project-local **task runner for Neovim**. Declare your build, test, run, and
+debug tasks once in a TOML file and launch them from inside the editor with
+`:Neotasks` — with smart completion and inline diagnostics while you edit the file,
+task dependencies, value expressions, quickfix parsing, and a live output window
+that streams each task's output.
+
+> [!WARNING]
+> **Work in progress.** The plugin is usable but under active development; the
+> configuration format may still change.
+
+---
+
+<!-- panvimdoc-ignore-start -->
+
+## Table of contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [Tasks file](#tasks-file)
+- [Task types](#task-types)
+  - [`process`](#process)
+  - [`shell`](#shell)
+  - [`composite`](#composite)
+  - [`debug`](#debug)
+- [Shared task options](#shared-task-options)
+- [Expressions](#expressions)
+- [Quickfix matchers](#quickfix-matchers)
+  - [Custom matchers](#custom-matchers)
+- [Tasks command](#tasks-command)
+- [Task output](#task-output)
+- [Editing support](#editing-support)
+- [Configuration](#configuration)
+- [License](#license)
+
+---
+
+<!-- panvimdoc-ignore-end -->
+
+## Features
+
+- **One TOML file per project** — tasks live in `neotasks.toml` at the project
+  root; the presence of that file *is* what marks a directory as a project.
+- **Built-in task types** — run a program directly (`process`), through a shell
+  (`shell`), group other tasks (`composite`), or start a debug session
+  (`debug`, via [ezdap.nvim](https://github.com/mbfoss/ezdap.nvim)).
+- **Task dependencies** — declare `depends_on` and run prerequisites in
+  `sequence` or in `parallel` before the task itself.
+- **Concurrency policies** — control what happens when a task is already running
+  (`wait`, `restart`, `refuse`, `parallel`).
+- **Value expressions** — interpolate the current file, cwd, environment,
+  shell output, or interactive prompts into task values with a small
+  `{{ … }}` expression language, and define your own reusable inline macros.
+- **Quickfix parsing** — turn compiler/linter/test output into a populated
+  quickfix list with a named matcher (GCC, TypeScript, Go, Rust, Python, and
+  more built in).
+- **Smart editing** — the tasks file gets completion, hover, diagnostics, code
+  actions, and formatting as you type.
+- **Live task output** — a bottom split streaming the running task's output,
+  with a per-run log buffer of its progress. With
+  [dock.nvim](https://github.com/mbfoss/dock.nvim) installed, each run gets its
+  own numbered tab instead.
+
+## Requirements
+
+- **Neovim ≥ 0.11**
+- [ezdap.nvim](https://github.com/mbfoss/ezdap.nvim) — *optional*, required
+  only for the `debug` task type.
+- [dock.nvim](https://github.com/mbfoss/dock.nvim) — *optional*; when present,
+  task output is shown in the shared dock panel, one tab per run, instead of the
+  plugin's own split.
+
+## Installation
+
+Using Neovim's built-in plugin manager, `vim.pack` (**Neovim 0.12+**; see
+`:help vim.pack`):
+
+```lua
+vim.pack.add({
+  -- { src = "https://github.com/mbfoss/ezdap.nvim" }, -- optional, only for `debug` tasks
+  { src = "https://github.com/mbfoss/neotasks.nvim" },
+})
+
+-- require("ezdap").setup()
+require("neotasks").setup()
+```
+
+Using [lazy.nvim](https://github.com/folke/lazy.nvim):
+
+```lua
+{
+  "mbfoss/neotasks.nvim",
+  -- optional, only for `debug` tasks:
+  -- dependencies = { "mbfoss/ezdap.nvim" },
+  opts = {},
+}
+```
+
+> `opts = {}` calls `require("neotasks").setup()` with the defaults. Replace it
+> with a table to override any [configuration](#configuration) value.
+
+## Quick start <!-- tag: quickstart -->
+
+1. Create a `neotasks.toml` in your project root:
+
+   ```toml
+   [tasks.build]
+   type    = "shell"
+   command = "make -j"
+
+   [tasks.test]
+   type       = "process"
+   command    = "ctest --output-on-failure"
+   depends_on = ["build"]
+   ```
+
+2. Run a task:
+
+   ```vim
+   :Neotasks
+   ```
+
+   Pick a task from the list. The [output window](#task-output) opens and streams
+   its output. Running `test` first runs `build` (its dependency), then `test`.
+
+3. Re-run the last task, or stop a running one:
+
+   ```vim
+   :Neotasks rerun
+   :Neotasks stop
+   ```
+
+While editing `neotasks.toml` you get completion, hover docs, and inline
+diagnostics for every field — see [Editing support](#editing-support).
+
+## Tasks file <!-- tag: tasks-file -->
+
+Tasks are defined under the `[tasks]` table, keyed by name. A task's **name is
+the header key** (`[tasks.<name>]`) — you do not repeat it as a field. Every
+task must declare a `type`.
+
+```toml
+# Optional: reusable inline expression macros (see “Expressions”).
+[expressions]
+outdir = "{{ projectdir }}/build"
+
+[tasks.build]
+type    = "shell"
+command = "cmake --build {{ outdir }}"
+
+[tasks.run]
+type       = "process"
+command    = "{{ outdir }}/app --verbose"
+depends_on = ["build"]
+```
+
+The top-level document has just two tables:
+
+| Key            | Purpose                                                         |
+| -------------- | -------------------------------------------------------------- |
+| `[tasks]`      | Task definitions, keyed by name (`[tasks.<name>]`). Required.   |
+| `[expressions]`| Named inline [expression](#expressions) macros. Optional.      |
+
+## Task types
+
+Every task shares a common set of [options](#shared-task-options); the fields
+below are specific to each type.
+
+### `process`
+
+Runs a command **directly, without a shell**. A string command is split into
+argv using POSIX shell-word rules; an array is used verbatim (no splitting,
+globbing, or shell operators).
+
+```toml
+[tasks.lint]
+type             = "process"
+command          = "eslint src --format unix"   # or ["eslint", "src", …]
+cwd              = "{{ projectdir }}"
+env              = { NODE_ENV = "development" }
+quickfix_matcher = "linter"
+```
+
+| Field              | Type                    | Description                                                            |
+| ------------------ | ----------------------- | --------------------------------------------------------------------- |
+| `command`          | string \| string[]      | **Required.** Program + args. String is shell-word split; array as-is. |
+| `cwd`              | string                  | Working directory for the command.                                    |
+| `env`              | table\<string,string>   | Environment variables to set.                                         |
+| `clear_env`        | boolean                 | Pass `env` verbatim instead of merging it onto the current env.       |
+| `quickfix_matcher` | string                  | Name of a [quickfix matcher](#quickfix-matchers) to parse output.     |
+
+### `shell`
+
+Runs a command **string through the shell**, so pipes, globs, redirection, and
+`&&` all work.
+
+```toml
+[tasks.deploy]
+type    = "shell"
+command = "npm run build && rsync -a dist/ server:/var/www"
+```
+
+Fields are the same as `process`, except `command` must be a single **string**
+(it is the shell command line).
+
+### `composite`
+
+A task with no command of its own — it exists purely to group other tasks
+through its dependencies. Combine with `depends_order` to run them in sequence
+or in parallel.
+
+```toml
+[tasks.ci]
+type          = "composite"
+depends_on    = ["lint", "test", "build"]
+depends_order = "sequence"
+```
+
+### `debug`
+
+Starts a debug session through [ezdap.nvim](https://github.com/mbfoss/ezdap.nvim).
+This task type is **only available when ezdap.nvim is installed** — without it,
+neotasks works normally and simply offers no `debug` type.
+
+The adapters you can use are the ones you list in
+[`setup{ debug_adapters }`](#configuration), which defaults to empty:
+
+```lua
+require("neotasks").setup({ debug_adapters = { "codelldb", "delve" } })
+```
+
+Only those adapters' definitions are loaded from ezdap, which keeps the schema
+behind completion and diagnostics cheap; a task naming an adapter that is not
+listed fails to start, reporting the adapter to add, and a name ezdap does not
+know is reported and skipped. List the names you can choose from with:
+
+```vim
+:lua =require("ezdap").available_adapters()
+```
+
+Each debug adapter publishes a set of **named modes** — its launch/attach
+shapes — that you pick from with `mode`, then fill that mode's inputs with
+`parameters`.
+
+```toml
+[tasks.debug-app]
+type       = "debug"
+adapter    = "codelldb"
+mode       = "launch"
+parameters = { command = "{{ outdir }}/app --flag", cwd = "{{ projectdir }}" }
+```
+
+| Field           | Type                     | Description                                                                                    |
+| --------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
+| `adapter`       | string                   | **Required.** Debug adapter name, from `setup{ debug_adapters }` (e.g. `codelldb`).            |
+| `mode`          | string                   | **Required.** Which of the adapter's named modes to run (e.g. `launch`, `attach`).             |
+| `parameters`    | table                    | Values for the selected `mode`'s inputs. Keys depend on `adapter`/`mode`.                      |
+
+When ezdap is available, `mode` completes to the adapter's named modes
+and `parameters` is completed and validated against the inputs that mode
+declares.
+
+## Shared task options <!-- tag: options -->
+
+These fields are available on **every** task type.
+
+| Field           | Type                                | Description                                                                            |
+| --------------- | ----------------------------------- | ------------------------------------------------------------------------------------- |
+| `type`          | string                              | **Required.** The task type.                                                          |
+| `if_running`    | enum                                | What to do if the task is already running (see below).                                |
+| `depends_on`    | string[]                            | Task names that must complete successfully before this task runs.                     |
+| `depends_order` | `"sequence"` \| `"parallel"`        | How the `depends_on` tasks are executed. `sequence` = one after another.              |
+| `save_buffers`  | boolean \| table                    | Save modified project buffers before the task (and its dependencies) run.             |
+
+**`if_running`** values:
+
+| Value       | Behaviour                                                       |
+| ----------- | -------------------------------------------------------------- |
+| `wait`      | Wait for the running instance to finish successfully.          |
+| `restart`   | Stop the current instance and start a new one.                 |
+| `refuse`    | Do not start a new instance if one is already running.         |
+| `parallel`  | Start a new instance alongside any existing ones.              |
+
+**`save_buffers`** can be `true` (save every modified project buffer) or a table
+with glob filters:
+
+```toml
+[tasks.build]
+type         = "shell"
+command      = "make"
+save_buffers = { include = ["src/**"], exclude = ["**/*.tmp"], include_hidden = false }
+```
+
+Hidden files (dotfiles / files under dot-directories) are skipped unless
+`include_hidden = true`.
+
+## Expressions
+
+Any task value can contain **`{{ … }}` slots** that are evaluated when the task
+runs. The interior of a slot is a small expression language: function calls,
+comma-separated arguments, string literals, numbers, booleans, and `..`
+concatenation. Nesting is function composition — `f(g(x))`.
+
+```toml
+[tasks.run]
+type    = "process"
+command = "{{ projectdir }}/build/app"
+cwd     = "{{ filedir }}"
+env     = { API_KEY = "{{ env('API_KEY') }}", REV = "{{ shell('git rev-parse --short HEAD') }}" }
+```
+
+A value with slots is always string interpolation: each slot's result is
+stringified into place (a `nil` result becomes an empty string), whether the
+value is a single slot or a slot mixed with literal text.
+
+### Built-in expressions <!-- tag: builtin -->
+
+| Expression                              | Result                                                            |
+| --------------------------------------- | ---------------------------------------------------------------- |
+| `file` *(filetype?)*                    | Absolute path of the current file.                               |
+| `filename` *(filetype?)*                | File name with extension.                                        |
+| `fileroot` *(filetype?)*                | Absolute path without the extension.                             |
+| `filedir`                               | Absolute directory of the current file.                          |
+| `fileext`                               | Extension (without the dot).                                     |
+| `cwd`                                   | The task's `cwd`, or the editor cwd.                             |
+| `projectdir`                            | Absolute path of the project root (where the tasks file lives).  |
+| `env(NAME)`                             | Value of an environment variable.                                |
+| `shell(CMD)`                            | Stdout of a shell command, trailing newlines stripped.           |
+| `prompt(TEXT, default?, completion?)`   | Ask for input at run time.                                       |
+| `lbrace`                                | A literal `{{` (escape hatch; same as `{{{{`).                   |
+
+Strings inside a slot use `"…"` or `'…'` and are **always verbatim** (no escape
+sequences, no nested interpolation) — pick the quote your content lacks. To
+build up a value, concatenate with `..`:
+
+```toml
+command = "{{ shell('echo ' .. file()) }}"
+```
+
+### Inline macros <!-- tag: macros -->
+
+Define reusable named expressions under `[expressions]`. They may reference
+built-ins, other inline macros, and their own positional arguments `$1`, `$2`, …
+
+```toml
+[expressions]
+greet  = "'Hello, ' .. $1 .. '!'"
+tagged = "greet($1) .. ' [' .. env('USER') .. ']'"
+outdir = "{{ projectdir }}/build/{{ $1 }}"
+
+[tasks.run]
+type    = "shell"
+command = "echo {{ tagged('world') }} && ls {{ outdir('release') }}"
+```
+
+You can evaluate any expression against the current project without running a
+task:
+
+```vim
+:Neotasks eval file
+:Neotasks eval {{ shell('git branch --show-current') }}
+```
+
+<!-- panvimdoc-ignore-start -->
+
+See [docs/expression-grammar.md](docs/expression-grammar.md) for the full
+grammar.
+
+<!-- panvimdoc-ignore-end -->
+
+<!-- vimdoc-only
+See docs/expression-grammar.md in the repository for the full grammar.
+-->
+
+## Quickfix matchers <!-- tag: matchers -->
+
+Set `quickfix_matcher` on a `process` or `shell` task to parse its output into
+the quickfix list as it streams. The list is cleared when the task starts and
+populated line by line, so you can `:copen` and jump straight to errors.
+
+Built-in matchers:
+
+| Name     | Tooling                                             |
+| -------- | --------------------------------------------------- |
+| `gcc`    | GCC / Clang (incl. template “required from” chains) |
+| `msvc`   | MSVC (`file(line): error CXXXX: …`)                 |
+| `tsc`    | TypeScript compiler                                 |
+| `go`     | Go compiler                                         |
+| `gotest` | `go test` output                                    |
+| `cargo`  | Rust / Cargo (errors and panics)                    |
+| `python` | Python tracebacks                                   |
+| `pytest` | pytest / unittest                                   |
+| `linter` | Generic `file:line:col: CODE: msg` (ESLint, Pylint, Flake8, Mypy, …) |
+| `unix`   | Generic `file:line:col: message`                    |
+
+### Custom matchers <!-- tag: custom-matchers -->
+
+Register your own with `register_qfmatcher(name, fn)`. The matcher is called
+once per output line, with ANSI escapes already stripped, and returns a quickfix
+item for that line or `nil` to ignore it:
+
+```lua
+---@param line    string   one line of task output
+---@param context table    per-run scratch table, shared across lines
+---@return neotasks.QfItem?
+require("neotasks").register_qfmatcher("luacheck", function(line, context)
+    local file, lnum, col, msg = line:match("^(.-):(%d+):(%d+):%s+(.+)$")
+    if not file then return nil end
+    return {
+        filename = file,
+        lnum     = tonumber(lnum),
+        col      = tonumber(col),
+        text     = msg,
+        type     = msg:match("^warning") and "W" or "E", -- "E", "W" or "I"
+    }
+end)
+```
+
+`context` is a fresh table per task run, letting a matcher carry state between
+lines — for example remembering a location printed on a preceding line and
+attaching it to the diagnostic that follows (this is how the `gcc` matcher
+resolves template “required from here” chains).
+
+Register at `setup` time or any point before the task runs. Names registered
+this way appear in LSP completion for `quickfix_matcher` and shadow a built-in
+of the same name, so you can replace `gcc` or `unix` with your own version.
+
+```toml
+[tasks.lint]
+type             = "shell"
+command          = "luacheck lua/"
+quickfix_matcher = "luacheck"
+```
+
+## Tasks command <!-- tag: command -->
+
+The user command (named `Neotasks` by default) is the single entry point. Called
+with no argument it opens the task picker.
+
+| Invocation              | Action                                                          |
+| ----------------------- | -------------------------------------------------------------- |
+| `:Neotasks` / `:Neotasks run` | Pick a task to run (with a live preview of its definition).    |
+| `:Neotasks clean [all]`    | Dispose all finished task runs.                                 |
+| `:Neotasks clean one`      | Pick a finished task run to dispose.                            |
+| `:Neotasks rerun`          | Re-run the last task.                                           |
+| `:Neotasks stop`           | Pick a running task to stop.                                    |
+| `:Neotasks cancel`         | Stop **all** running tasks.                                     |
+| `:Neotasks eval [expr]`    | Evaluate an expression (or bare expression name) and echo it.  |
+| `:Neotasks template`       | Insert a task template at the cursor (only in the tasks file). |
+| `:Neotasks panel`          | Toggle the [output window](#task-output).                       |
+
+Subcommands and task names complete on `<Tab>`.
+
+## Task output <!-- tag: output -->
+
+Every run gets its own scratch log buffer — a timestamped record of what it did
+(dependencies waited on, the resolved task, files saved, how it ended) — named
+after the run, e.g. `neotasks://build#1`, alongside whatever buffers the task
+type spawns (a terminal per `process`/`shell` task, streaming live).
+
+Where those buffers appear depends on your setup:
+
+- **With [dock.nvim](https://github.com/mbfoss/dock.nvim)** — each run becomes a
+  numbered tab in the shared dock panel, carrying a status badge (`▶` running,
+  `✓` ok, `✗` failed, `⧗` waiting on dependencies) and one page per buffer.
+  Click a tab to switch; new output on an inactive tab is flagged with an unread
+  marker. `:Dock clean` asks each tab to shed itself: a finished run is
+  disposed, buffers and all, and a running one keeps its tab.
+- **Without it** — a single bottom split shows the highest-priority buffer of
+  the running task, swapping the occupant rather than stacking splits. A task's
+  terminal outranks its log, so the log is what you see until there is real
+  output. Like the quickfix window, the split is only ours while it holds one of
+  those buffers: edit a file in it and it becomes an ordinary window, and the
+  next run's output opens a fresh split.
+
+`:Neotasks panel` toggles the window; `:Neotasks clean one` disposes a finished run
+(its buffers included), and `:Neotasks clean` disposes every finished run at once.
+Disposal always goes through the runner, whichever end it is asked from —
+`:Neotasks`, or `:Dock clean` on the tab. It owns the run, so it decides whether
+the run may go and it deletes the buffers; the view only ever asks, and reacts
+once it has happened.
+
+## Editing support <!-- tag: editing -->
+
+Opening the tasks file gives you rich, schema-aware editing — including any task
+types, adapters, and expressions available in your setup:
+
+- **Completion** — task types, field names, enum values, dependency task names,
+  and expression names/arguments inside `{{ … }}`.
+- **Diagnostics** — schema validation, unknown fields, type errors, and
+  malformed expressions, shown inline as you type.
+- **Hover** — field and expression documentation.
+- **Code actions** — fill in the required fields a task is missing, expand or
+  collapse an inline table or array, and move between the two ways of writing a
+  table: `env = { … }` becomes a `[tasks.build.env]` section, and folding that
+  section back puts the pair in its parent again.
+- **Formatting** for the TOML document.
+
+Tasks file gets its own `neotasks` filetype, so your existing TOML tooling
+is left untouched.
+
+## Configuration <!-- tag: config -->
+
+Call `setup()` (directly, or via your plugin manager's `opts`) exactly once:
+it is required, since the command, filetype and LSP are only registered by it.
+All fields are optional; defaults shown:
+
+```lua
+require("neotasks").setup({
+  command        = "Neotasks",       -- name of the user command
+  tasks_filename = "neotasks.toml",  -- per-project tasks file (also the project marker)
+  storage_dir    = ".neotasks",  -- per-project state directory
+  debug_adapters = {},            -- ezdap adapters usable by `debug` tasks
+})
+```
+
+`debug_adapters` is what [`debug`](#debug) tasks may name in `adapter`; empty
+means no `debug` task runs.
+
+Check whether the cwd is an neotasks project with
+`require("neotasks").in_project()`.
+
+```vim
+:checkhealth neotasks
+```
+
+reports the Neovim version and the optional companion plugins, whether `setup()`
+has run, the options that differ from the defaults, the tasks file found for the
+cwd (and whether it loads), and the registered task types with the ezdap
+adapters behind `debug`.
+
+<!-- panvimdoc-ignore-start -->
+
+## License
+
+Released under the [MIT License](LICENSE). Debug support is provided by
+[ezdap.nvim](https://github.com/mbfoss/ezdap.nvim).
+
+<!-- panvimdoc-ignore-end -->

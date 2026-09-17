@@ -1,0 +1,8 @@
+# Pinned upstream commit for lua/neotasks/tomltools.
+# Normally written by scripts/update-tomltools.sh; this first copy was
+# reconstructed on 2026-09-07 by verifying the vendored tree against upstream
+# (every vendored file matches lua/tomltools/ at the commit below, modulo the
+# namespace rewrite the script applies).
+repo=https://github.com/mbfoss/tomltools.git
+ref=main
+commit=f40f3d0a3f1e76d76618b537227e3ea6075a4315

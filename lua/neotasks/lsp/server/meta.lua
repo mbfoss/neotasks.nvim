@@ -1,0 +1,18 @@
+---@meta
+
+---@class neotasks.LspBufferContext
+---@field bufnr         number|nil
+---@field cst           tomltools.Cst
+---@field parse_errors  table
+---@field data          any
+---@field decode_errors table
+---@field decode_tree   tomltools.DecodeTree?
+---@field schema        table|nil   JSON schema assigned to this buffer
+---@field expressions   { name: string, description: string? }[]?  built-in expression names for `{{ … }}` completion
+---@field parse_results table|nil   Last known output (data, errors)
+---@field last_updated  integer|nil Timestamp or btick when the cache was updated
+---@field config        table|nil   Optional buffer-local configuration overrides
+---@field debounce_timer number?
+---@field text          string?     Raw document text (set by subprocess server)
+---@field lines         string[]?   Document text split on "\n" (set by subprocess server)
+---@field code_action_providers (fun(ctx: neotasks.LspBufferContext, params: table): table[]?)[]?
