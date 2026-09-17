@@ -1,0 +1,65 @@
+# README demo: complete a field in neotasks.toml, run `test` from the picker
+# (which runs its `build` dependency first, each in its own panel tab), and
+# jump to the failure the quickfix matcher parsed from the test output.
+size 100x33
+cwd project
+init init.lua
+out out/01-run-task.gif
+cast out/01-run-task.cast
+
+font-family SauceCodePro NF
+font-dir ~/Library/Fonts
+font-size 17
+line-height 1.19
+theme nord
+fps 20
+idle-time-limit 2
+last-frame-duration 2
+wait-timeout 20s
+hold 2s
+
+caption Complete a field  ·  neotasks.toml
+sleep 600ms
+key a
+key <Space>
+type "
+key <C-Space>
+wait cargo
+sleep 800ms
+type py
+wait pytest
+sleep 900ms
+key <C-n>
+sleep 300ms
+key <C-y>
+wait quickfix_matcher = "pytest"
+key <Esc>
+sleep 300ms
+type :w
+key <CR>
+sleep 500ms
+
+caption Run a task  ·  :Neotasks
+type :Neotasks
+key <CR>
+wait Run task
+sleep 700ms
+type test
+wait test
+sleep 400ms
+key <CR>
+
+caption Dependencies run first  ·  build then test
+wait 1 failed
+sleep 900ms
+
+caption Jump to the failure  ·  quickfix
+type :copen
+key <CR>
+wait AssertionError
+sleep 900ms
+type :cfirst
+key <CR>
+wait workers\(\) == 3
+key <C-l>
+sleep 1200ms
