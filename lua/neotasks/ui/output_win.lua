@@ -182,8 +182,10 @@ function M.open(focus)
     -- fixedwin owns the split, its height pinning and the resize/ratio tracking;
     -- we only swap in the run's buffer. Its on_delete fires on WinClosed, so
     -- closing by any route — ours, `:q` — records the height and drops the state.
-    _win, _fixed_group = fixedwin.create_fixed_win("height", _ratio or _HEIGHT_RATIO,
-        function(ratio)
+    _win, _fixed_group = fixedwin.create_fixed_win(bufnr, {
+        axis = "height", ratio = _ratio or _HEIGHT_RATIO,
+        min = _MIN_HEIGHT, enter = focus or false,
+        on_delete = function(ratio)
             _ratio       = ratio
             _closed_with = _shown
             _win, _shown = nil, nil
@@ -192,7 +194,7 @@ function M.open(focus)
             -- and only on this tick — a `:q` a moment earlier must not.
             vim.schedule(function() _closed_with = nil end)
         end,
-        { min = _MIN_HEIGHT, enter = focus or false })
+    })
 
     _ui_util.win_setlocal(_win, "spell", false)
 

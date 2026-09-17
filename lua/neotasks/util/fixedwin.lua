@@ -7,7 +7,7 @@ local M = {}
 -- re-applied on layout changes.
 
 ---@class neotasks.util.fixedwin.AxisSpec
----@field split string                    :split subcommand, combined with a placement modifier
+---@field sides {topleft: string, botright: string}  nvim_open_win() `split` direction per placement
 ---@field fix   string                    window option that pins the axis
 ---@field frame "col"|"row"               ancestor frame kind along which the axis is resized
 ---@field total fun(): integer            total lines/columns available
@@ -17,24 +17,30 @@ local M = {}
 ---@type table<string, neotasks.util.fixedwin.AxisSpec>
 local _AXES = {
     height = {
-        split = "split",
+        sides = { topleft = "above", botright = "below" },
         fix   = "winfixheight",
         frame = "col",
-        total = function() return vim.o.lines end,
+        total = function() return vim.api.nvim_get_option_value("lines", {}) end,
         get   = vim.api.nvim_win_get_height,
         set   = vim.api.nvim_win_set_height,
     },
     width = {
-        split = "vsplit",
+        sides = { topleft = "left", botright = "right" },
         fix   = "winfixwidth",
         frame = "row",
-        total = function() return vim.o.columns end,
+        total = function() return vim.api.nvim_get_option_value("columns", {}) end,
         get   = vim.api.nvim_win_get_width,
         set   = vim.api.nvim_win_set_width,
     },
 }
 
 local win_setlocal = uiutil.win_setlocal
+
+---@param win integer
+---@param opt string
+local function win_getopt(win, opt)
+    return vim.api.nvim_get_option_value(opt, { win = win })
+end
 
 -- Frames from the layout root down to `target`, with the child index taken.
 ---@param node   table    a vim.fn.winlayout() node
@@ -57,7 +63,7 @@ end
 ---@param fix  string  'winfixheight' or 'winfixwidth'
 ---@return boolean
 local function has_flexible_leaf(node, fix)
-    if node[1] == "leaf" then return not vim.wo[node[2]][fix] end
+    if node[1] == "leaf" then return not win_getopt(node[2], fix) end
     for _, child in ipairs(node[2]) do
         if has_flexible_leaf(child, fix) then return true end
     end
@@ -65,28 +71,28 @@ local function has_flexible_leaf(node, fix)
 end
 
 ---@class neotasks.util.fixedwin.Opts
----@field min?   integer  minimum size (lines/columns); default 1
----@field enter? boolean  leave the cursor in the new window; default false (returns to the previous window)
----@field pos?   nil|"topleft"|"botright" placement modifier for the split
+---@field axis       "height"|"width"
+---@field ratio      number               fraction of total lines/columns (0..1)
+---@field min?       integer              minimum size (lines/columns); default 1
+---@field enter?     boolean              enter the new window; default false
+---@field pos?       "topleft"|"botright" edge of the editor to split at; default "botright"
+---@field on_delete? fun(ratio: number)   called when the window closes, with the last-known ratio
 
---- Create a split pinned to `ratio` along `axis`, re-applied on layout changes.
---- Moved to the other side (e.g. <C-w>L), it is pinned along the cross axis with
---- the same ratio. The ratio follows user resizes and is passed to `on_delete`.
----@param axis "height"|"width"
----@param ratio number                     fraction of total lines/columns (0..1)
----@param on_delete? fun(ratio: number)     called when the window closes, with the last-known ratio
----@param opts? neotasks.util.fixedwin.Opts
+--- Create a split showing `buf`, pinned to `opts.ratio` along `opts.axis` and
+--- re-applied on layout changes. Moved to the other side (e.g. <C-w>L), it is
+--- pinned along the cross axis with the same ratio, which follows user resizes.
+---@param buf integer  buffer to display; 0 for the current buffer
+---@param opts neotasks.util.fixedwin.Opts
 ---@return integer winid, integer group
-function M.create_fixed_win(axis, ratio, on_delete, opts)
+function M.create_fixed_win(buf, opts)
+    local axis, ratio, on_delete = opts.axis, opts.ratio, opts.on_delete
     local spec = assert(_AXES[axis], "fixedwin: unknown axis " .. tostring(axis))
     local cross = axis == "height" and _AXES.width or _AXES.height
-    opts = opts or {}
     local min = opts.min or 1
-    local pos = opts.pos or "botright"
+    local split = assert(spec.sides[opts.pos or "botright"], "fixedwin: unknown pos " .. tostring(opts.pos))
 
-    local prev_win = vim.api.nvim_get_current_win()
-    vim.cmd(pos .. " " .. spec.split)
-    local win = vim.api.nvim_get_current_win() ---@type integer?
+    -- win = -1 splits at the editor edge, like :topleft/:botright
+    local win = vim.api.nvim_open_win(buf, opts.enter or false, { split = split, win = -1 }) ---@type integer?
     assert(win)
 
     win_setlocal(win, spec.fix, true)
@@ -116,10 +122,6 @@ function M.create_fixed_win(axis, ratio, on_delete, opts)
     end
 
     apply_size(spec, size_for(spec, ratio))
-
-    if not opts.enter then
-        vim.api.nvim_set_current_win(prev_win)
-    end
 
     -- the window's own tabpage layout (winlayout() defaults to the current tab)
     ---@return table
@@ -170,8 +172,8 @@ function M.create_fixed_win(axis, ratio, on_delete, opts)
             or (pinnable(cross, layout) and cross)
             or nil
         local on = active == spec
-        if vim.wo[win][spec.fix] ~= on then win_setlocal(win, spec.fix, on) end
-        if active == cross and not vim.wo[win][cross.fix] then
+        if win_getopt(win, spec.fix) ~= on then win_setlocal(win, spec.fix, on) end
+        if active == cross and not win_getopt(win, cross.fix) then
             win_setlocal(win, cross.fix, true)
             cross_owned = true
         elseif active ~= cross and cross_owned then
