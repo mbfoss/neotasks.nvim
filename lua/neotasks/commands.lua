@@ -1,4 +1,4 @@
-local config       = require("neotasks.config")
+local config       = require("neotasks.config").current
 local runner       = require("neotasks.runner")
 local task_types   = require("neotasks.types")
 local runview      = require("neotasks.ui.runview")

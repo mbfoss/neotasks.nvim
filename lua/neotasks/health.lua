@@ -56,7 +56,7 @@ end
 local function _check_setup()
     health.start("neotasks: setup")
 
-    local config = require("neotasks.config")
+    local config = require("neotasks.config").current
 
     if _is_setup() then
         health.ok("setup() has been called")
@@ -123,7 +123,7 @@ local function _check_config()
         return
     end
 
-    local diffs = _diff_config(require("neotasks.config"), plugin.get_default_config(), "", {})
+    local diffs = _diff_config(require("neotasks.config").current, plugin.get_default_config(), "", {})
     table.sort(diffs, function(a, b) return a.path < b.path end)
 
     if #diffs == 0 then
@@ -174,7 +174,7 @@ end
 ---resolved against ezdap's registry, since only those get a definition loaded
 ---and a task on any other adapter refuses to start.
 local function _check_debug_adapters()
-    local wanted = require("neotasks.config").debug_adapters or {}
+    local wanted = require("neotasks.config").current.debug_adapters or {}
     if #wanted == 0 then
         health.warn("`debug_adapters` is empty, so no `debug` task can start", {
             "List the adapters you use, e.g. debug_adapters = { 'codelldb' }",

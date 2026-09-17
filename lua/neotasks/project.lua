@@ -1,6 +1,6 @@
 local M = {}
 
-local config = require("neotasks.config")
+local config = require("neotasks.config").current
 
 --- Find the project root by checking for the tasks file in cwd.
 ---@return string|nil root

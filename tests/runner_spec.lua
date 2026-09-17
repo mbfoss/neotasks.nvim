@@ -9,7 +9,7 @@ local exec       = require("neotasks.runner.exec")
 local task_types = require("neotasks.types")
 local ui         = require("neotasks.ui")
 
-local tasks_filename = require("neotasks.config").tasks_filename
+local tasks_filename = require("neotasks.config").current.tasks_filename
 
 -- The built-in `debug` type projects its schema from the companion `ezdap` plugin,
 -- absent from the isolated test env. Every run rebuilds the full schema, so

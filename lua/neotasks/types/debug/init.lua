@@ -19,7 +19,7 @@ end
 --- these get their definition loaded for the schema and templates.
 ---@return string[]
 function M.adapters()
-    local wanted = require("neotasks.config").debug_adapters or {}
+    local wanted = require("neotasks.config").current.debug_adapters or {}
     if #wanted == 0 then return {} end
 
     -- The registered names, which cost no adapter load.

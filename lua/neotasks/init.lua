@@ -1,10 +1,6 @@
 local M      = {}
 
-local config = require("neotasks.config")
-
--- The defaults, captured before `setup()` mutates the config in place — the
--- health check diffs the live config against them.
-local _defaults = vim.deepcopy(config)
+local config = require("neotasks.config").current
 
 ---@type boolean
 local _setup_called = false
@@ -53,7 +49,7 @@ end
 --- The config as it was before any `setup()`, for comparison.
 ---@return neotasks.Config
 function M.get_default_config()
-    return vim.deepcopy(_defaults)
+    return require("neotasks.config").defaults()
 end
 
 --- True once `setup()` has been called.
@@ -119,10 +115,7 @@ function M.setup(opts)
     end
     _setup_called = true
 
-    local tmp = vim.tbl_deep_extend("force", config, opts or {})
-    for k, v in pairs(tmp) do
-        config[k] = v
-    end
+    require("neotasks.config").apply(opts)
 
     vim.filetype.add({
         filename = {

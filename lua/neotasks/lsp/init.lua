@@ -29,7 +29,7 @@ end
 --- `lsp_debug_commands` changed by `setup()` is honoured.
 ---@return table
 function M.init_options()
-    return { debug_commands = require("neotasks.config").lsp_debug_commands }
+    return { debug_commands = require("neotasks.config").current.lsp_debug_commands }
 end
 
 --- `root_dir`: doubles as the attach guard -- `on_dir` is called only for the
@@ -39,7 +39,7 @@ end
 ---@param on_dir fun(dir: string)
 function M.root_dir(buf, on_dir)
     local name = vim.api.nvim_buf_get_name(buf)
-    if name ~= "" and vim.fs.basename(name) == require("neotasks.config").tasks_filename then
+    if name ~= "" and vim.fs.basename(name) == require("neotasks.config").current.tasks_filename then
         on_dir(vim.fn.getcwd())
     end
 end

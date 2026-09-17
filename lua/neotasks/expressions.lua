@@ -135,7 +135,7 @@ end
 
 function _expressions.projectdir(_, resolve)
     local cwd = vim.fn.getcwd()
-    local tasks_file = vim.fs.joinpath(cwd, require("neotasks.config").tasks_filename)
+    local tasks_file = vim.fs.joinpath(cwd, require("neotasks.config").current.tasks_filename)
     if vim.fn.filereadable(tasks_file) == 0 then
         return nil, "tasks file not found in cwd: " .. cwd
     end
