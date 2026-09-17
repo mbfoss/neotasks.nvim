@@ -30,7 +30,10 @@ The public API lives in [lua/neotasks/init.lua](lua/neotasks/init.lua):
   plus the user-registered matcher registry). Each type contributes a JSON Schema
   fragment; [types/schema.lua](lua/neotasks/types/schema.lua) merges them with
   the shared `base_properties` (name, `if_running`, `depends_on`,
-  `depends_order`) into the full schema used by the LSP.
+  `depends_order`) into the full schema used by the LSP. `save_buffers` is not
+  shared: a type opts in with `supports_save_buffers = true` on its definition, which adds
+  the property to its schema and has the runner save buffers before `start()`
+  (`process`, `shell` and `debug` do). Other types may use the field name freely.
 - [expressions.lua](lua/neotasks/expressions.lua) — `{{ name }}` / `{{ name args }}`
   substitutions available in task config values.
 - [tomltools/](lua/neotasks/tomltools/) — vendored TOML engine (parser, decoder,

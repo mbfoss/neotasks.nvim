@@ -210,6 +210,7 @@ end
 ---A `debug` task: the framework base plus the adapter/mode selection
 ---and the values for that mode's inputs.
 ---@class neotasks.DebugTask : neotasks.TaskBase
+---@field save_buffers?  boolean|neotasks.TaskSaveBuffers
 ---@field adapter        string
 ---@field mode           string
 ---@field parameters?    table<string, any>
@@ -276,7 +277,8 @@ function M.dispose(run_id, bufnrs)
     end
 end
 
-M.schema = _schema
+M.schema                = _schema
+M.supports_save_buffers = true
 
 ---@return neotasks.TaskTemplate[]
 M.templates = function()

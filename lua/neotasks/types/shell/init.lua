@@ -44,6 +44,7 @@ local function _spawn_summary(cmd, opts)
 end
 
 ---@class neotasks.ShellTask : neotasks.TaskBase
+---@field save_buffers?     boolean|neotasks.TaskSaveBuffers save modified project buffers before running
 ---@field command?          string                command line evaluated by the shell (pipes, globs, redirection, `&&`)
 ---@field cwd?              string                working directory used when executing the command
 ---@field env?              table<string,string>  environment variables as a key-value map
@@ -54,6 +55,8 @@ end
 --- syntax (pipes, globs, redirection, `&&`, …) is interpreted.
 ---@type neotasks.TaskTypeDef
 local M = {
+    supports_save_buffers = true,
+
     ---@type neotasks.RunFn
     start = function(task, ctx, on_done)
         ---@cast task neotasks.ShellTask

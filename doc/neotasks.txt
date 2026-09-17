@@ -296,7 +296,8 @@ When ezdap is available, `mode` completes to the adapter’s named modes and
 ==============================================================================
 7. Shared task options                                      *neotasks-options*
 
-These fields are available on **every** task type.
+These fields are available on **every** task type, except `save_buffers`, which
+only `process`, `shell` and `debug` tasks accept.
 
   -------------------------------------------------------------------------------
   Field           Type               Description
@@ -313,7 +314,7 @@ These fields are available on **every** task type.
                   "parallel"         sequence = one after another.
 
   save_buffers    boolean | table    Save modified project buffers before the
-                                     task (and its dependencies) run.
+                                     task runs, once its dependencies complete.
   -------------------------------------------------------------------------------
 **if_running** values:
 
@@ -339,7 +340,8 @@ with glob filters:
 <
 
 Hidden files (dotfiles / files under dot-directories) are skipped unless
-`include_hidden = true`.
+`include_hidden = true`. A `composite` task does not accept `save_buffers`; set
+it on the dependencies that need saved files instead.
 
 
 ==============================================================================

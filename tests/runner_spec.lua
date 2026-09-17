@@ -65,6 +65,22 @@ task_types.register("t_expr", {
     start  = function(_, _, done) done(true); return function() end end,
 })
 
+-- Opts in to the runner-handled `save_buffers` field.
+task_types.register("t_save", {
+    supports_save_buffers = true,
+    start                 = function(_, _, done) done(true); return function() end end,
+})
+-- Gives `save_buffers` a meaning of its own; records what it received.
+local own_save = {}
+task_types.register("t_own_save", {
+    schema = { properties = { save_buffers = { type = "boolean" } } },
+    start  = function(task, _, done)
+        own_save.value = task.save_buffers
+        done(true)
+        return function() end
+    end,
+})
+
 -- helpers
 
 --- Write task TOML to a fresh temp file and return its absolute path. Tasks are a
@@ -305,6 +321,41 @@ describe("runner exec", function()
         end)
     end)
 
+    describe("save_buffers", function()
+        local save_buffers = require("neotasks.util.save_buffers")
+        local project      = require("neotasks.project")
+        local prev_save, prev_find_root, saves
+
+        before_each(function()
+            saves, own_save.value = 0, nil
+            prev_save, prev_find_root = save_buffers.save, project.find_root
+            project.find_root = function() return vim.fn.getcwd() end
+            save_buffers.save = function()
+                saves = saves + 1
+                return 0, {}, {}
+            end
+        end)
+
+        after_each(function()
+            save_buffers.save, project.find_root = prev_save, prev_find_root
+        end)
+
+        it("saves buffers for a type that opted in", function()
+            local path = write_tasks({ "[[tasks]]", 'name="so"', 'type="t_save"', "save_buffers=true" })
+            exec.run("so", path)
+            wait_state("so", "ok")
+            assert.equal(1, saves)
+        end)
+
+        it("leaves save_buffers to a type that did not opt in", function()
+            local path = write_tasks({ "[[tasks]]", 'name="own"', 'type="t_own_save"', "save_buffers=true" })
+            exec.run("own", path)
+            wait_state("own", "ok")
+            assert.equal(0, saves)
+            assert.is_true(own_save.value)
+        end)
+    end)
+
     describe("if_running policies", function()
         it("refuses a second run by default and warns", function()
             local path = write_tasks({ "[[tasks]]", 'name="rf"', 'type="t_block"' })
@@ -470,6 +521,40 @@ describe("runner exec", function()
 
         it("returns an error for an invalid file", function()
             local path = write_tasks({ 'title="x"' })
+            local ordered, _, err = exec.list(path)
+            assert.is_nil(ordered)
+            assert.is_string(err)
+        end)
+
+        it("accepts save_buffers on shell and process tasks", function()
+            local path = write_tasks({
+                "[[tasks]]", 'name="sh"', 'type="shell"', 'command="true"', "save_buffers=true", "",
+                "[[tasks]]", 'name="pr"', 'type="process"', 'command="true"',
+                'save_buffers={ include=["src/**"] }',
+            })
+            local ordered, _, err = exec.list(path)
+            assert.is_nil(err)
+            assert.same({ "sh", "pr" }, ordered)
+        end)
+
+        it("errors when a type opts in to save_buffers and defines its own property", function()
+            local registry = {
+                bad = {
+                    supports_save_buffers = true,
+                    schema                = { properties = { save_buffers = { type = "string" } } },
+                    start                 = function() end,
+                },
+            }
+            local ok, err = pcall(require("neotasks.types.schema").build, registry)
+            assert.is_false(ok)
+            assert.is_truthy(tostring(err):find('task type "bad" sets supports_save_buffers', 1, true))
+        end)
+
+        it("rejects save_buffers on a composite task", function()
+            local path = write_tasks({
+                "[[tasks]]", 'name="dep"', 'type="t_ok"', "",
+                "[[tasks]]", 'name="comp"', 'type="composite"', 'depends_on=["dep"]', "save_buffers=true",
+            })
             local ordered, _, err = exec.list(path)
             assert.is_nil(ordered)
             assert.is_string(err)

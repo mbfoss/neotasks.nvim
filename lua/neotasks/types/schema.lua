@@ -20,7 +20,6 @@ local M = {}
 ---@field if_running?    neotasks.IfRunning               what happens if the task is already running
 ---@field depends_on?    string[]                          names of tasks that must complete before this one runs
 ---@field depends_order? neotasks.DependsOrder            how `depends_on` tasks are executed
----@field save_buffers?  boolean|neotasks.TaskSaveBuffers save modified project buffers before running
 
 --- Properties present on every task regardless of type.
 --- The `type` field itself is omitted here; `build` inserts it with the correct enum.
@@ -52,30 +51,35 @@ M.base_properties = {
         ["x-enumDescriptions"] = { "dependencies run one after another", "dependencies run concurrently" },
         description           = "Specifies how dependencies listed in 'depends_on' are executed",
     },
-    save_buffers = {
-        description = "Save modified project buffers before the task (and its dependencies) run. Hidden files are skipped unless include_hidden is set.",
-        oneOf       = {
-            { type = "boolean", description = "true saves every modified project buffer; false (default) saves nothing" },
-            {
-                type                 = "object",
-                additionalProperties = false,
-                description          = "Save modified project buffers matching these glob filters",
-                properties           = {
-                    include = {
-                        type        = "array",
-                        description = "Glob patterns; only matching buffers are saved (empty/omitted means all)",
-                        items       = { type = "string", minLength = 1, description = "Glob pattern" },
-                    },
-                    exclude = {
-                        type        = "array",
-                        description = "Glob patterns; matching buffers are never saved",
-                        items       = { type = "string", minLength = 1, description = "Glob pattern" },
-                    },
-                    include_hidden = {
-                        type        = "boolean",
-                        default     = false,
-                        description = "Also save hidden files (dotfiles or files under dot-directories), which are skipped by default",
-                    },
+}
+
+--- The `save_buffers` property, added by `build` to the types whose definition
+--- sets `supports_save_buffers` (`process`, `shell`, `debug`). Not part of
+--- `base_properties`: on a type with no action, such as `composite`, it would only
+--- save once its dependencies are done, and other types may use the name freely.
+local _save_buffers_property = {
+    description = "Save modified project buffers before the task runs, once its dependencies have completed. Hidden files are skipped unless include_hidden is set.",
+    oneOf       = {
+        { type = "boolean", description = "true saves every modified project buffer; false (default) saves nothing" },
+        {
+            type                 = "object",
+            additionalProperties = false,
+            description          = "Save modified project buffers matching these glob filters",
+            properties           = {
+                include = {
+                    type        = "array",
+                    description = "Glob patterns; only matching buffers are saved (empty/omitted means all)",
+                    items       = { type = "string", minLength = 1, description = "Glob pattern" },
+                },
+                exclude = {
+                    type        = "array",
+                    description = "Glob patterns; matching buffers are never saved",
+                    items       = { type = "string", minLength = 1, description = "Glob pattern" },
+                },
+                include_hidden = {
+                    type        = "boolean",
+                    default     = false,
+                    description = "Also save hidden files (dotfiles or files under dot-directories), which are skipped by default",
                 },
             },
         },
@@ -105,6 +109,14 @@ function M.build(type_registry)
             vim.deepcopy(M.base_properties),
             vim.deepcopy(ts.properties or {})
         )
+        -- The shared save_buffers field, for types that let the runner handle it.
+        if td.supports_save_buffers then
+            if ts.properties and ts.properties.save_buffers ~= nil then
+                error(("task type %q sets supports_save_buffers but also defines its own save_buffers property")
+                    :format(name))
+            end
+            props.save_buffers = vim.deepcopy(_save_buffers_property)
+        end
         props.type = { const = name }
 
         -- required = ["type"] + whatever the type adds (the name is the header key,

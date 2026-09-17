@@ -47,6 +47,7 @@ local function _spawn_summary(cmd, opts)
 end
 
 ---@class neotasks.ProcessTask : neotasks.TaskBase
+---@field save_buffers?     boolean|neotasks.TaskSaveBuffers save modified project buffers before running
 ---@field command?          string|string[]       command to run directly (string split via shell-word rules, array used as-is)
 ---@field cwd?              string                working directory used when executing the command
 ---@field env?              table<string,string>  environment variables as a key-value map
@@ -57,7 +58,8 @@ end
 --- command is split into argv via POSIX shell-word rules; an array is used as-is.
 ---@type neotasks.TaskTypeDef & { register_qfmatcher: fun(name: string, fn: neotasks.QfMatcher) }
 local M = {
-    register_qfmatcher = qfmatchers.register,
+    register_qfmatcher    = qfmatchers.register,
+    supports_save_buffers = true,
 
     ---@type neotasks.RunFn
     start = function(task, ctx, on_done)

@@ -265,7 +265,8 @@ declares.
 
 ## Shared task options <!-- tag: options -->
 
-These fields are available on **every** task type.
+These fields are available on **every** task type, except `save_buffers`,
+which only `process`, `shell` and `debug` tasks accept.
 
 | Field           | Type                                | Description                                                                            |
 | --------------- | ----------------------------------- | ------------------------------------------------------------------------------------- |
@@ -273,7 +274,7 @@ These fields are available on **every** task type.
 | `if_running`    | enum                                | What to do if the task is already running (see below).                                |
 | `depends_on`    | string[]                            | Task names that must complete successfully before this task runs.                     |
 | `depends_order` | `"sequence"` \| `"parallel"`        | How the `depends_on` tasks are executed. `sequence` = one after another.              |
-| `save_buffers`  | boolean \| table                    | Save modified project buffers before the task (and its dependencies) run.             |
+| `save_buffers`  | boolean \| table                    | Save modified project buffers before the task runs, once its dependencies complete.   |
 
 **`if_running`** values:
 
@@ -295,7 +296,8 @@ save_buffers = { include = ["src/**"], exclude = ["**/*.tmp"], include_hidden = 
 ```
 
 Hidden files (dotfiles / files under dot-directories) are skipped unless
-`include_hidden = true`.
+`include_hidden = true`. A `composite` task does not accept `save_buffers`; set it
+on the dependencies that need saved files instead.
 
 ## Expressions
 

@@ -18,11 +18,12 @@ local project      = require("neotasks.project")
 ---@alias neotasks.DisposeFn fun(run_id: string, bufnrs: neotasks.BufEntry[])
 ---@
 ---@class neotasks.TaskTypeDef
----@field start      neotasks.RunFn
----@field dispose    neotasks.DisposeFn?  optional cleanup called when the run is disposed
----@field schema     (table|(fun(): table))?
----@field templates  (neotasks.TaskTemplate[]|(fun(): neotasks.TaskTemplate[]))?
----@field no_action  boolean?  type has no action of its own; behaviour is purely its dependencies
+---@field start                 neotasks.RunFn
+---@field dispose               neotasks.DisposeFn?  optional cleanup called when the run is disposed
+---@field schema                (table|(fun(): table))?
+---@field templates             (neotasks.TaskTemplate[]|(fun(): neotasks.TaskTemplate[]))?
+---@field no_action             boolean?  type has no action of its own; behaviour is purely its dependencies
+---@field supports_save_buffers boolean?  opt in to the shared `save_buffers` task field: the schema gains the property and the runner saves buffers before start()
 
 ---@class neotasks.BufEntry
 ---@field bufnr    integer
@@ -242,7 +243,7 @@ end
 --- Save modified project buffers for a task if it opted in, reporting which
 --- files were saved. No-op when not in a project or nothing matched. Returns
 --- false if any buffer could not be written, so the run can be aborted.
----@param task   neotasks.TaskBase
+---@param task   neotasks.TaskBase|{ save_buffers?: boolean|neotasks.TaskSaveBuffers }
 ---@param report fun(message: string)
 ---@return boolean ok
 local function _save_buffers_for(task, report)
@@ -444,8 +445,11 @@ local function _run_task_coro(name, tasks, run_id, primary, expressions, on_star
 
     -- Save buffers immediately before this task's own effective run (after its
     -- dependencies have completed). A dependency that needs saving sets its own
-    -- save_buffers flag.
-    if not _save_buffers_for(task, function(msg) _append_report(run_id, msg) end) then
+    -- save_buffers flag. Only for types that opted in: any other type is free to
+    -- give a `save_buffers` field its own meaning.
+    if type_def.supports_save_buffers
+        and not _save_buffers_for(task, function(msg) _append_report(run_id, msg) end)
+    then
         return finish("failed")
     end
 
