@@ -15,12 +15,15 @@ local function _warn_once(key, msg)
 end
 
 --- The adapters the `debug` type may use: the ones named in
---- `setup{ debug_adapters = … }`, kept to those ezdap has registered. Only
---- these get their definition loaded for the schema and templates.
+--- `setup{ debug_adapters = … }`, kept to those ezdap has registered, plus
+--- ezdap's built-in `remote` adapter, which is always included. Only these get
+--- their definition loaded for the schema and templates.
 ---@return string[]
 function M.adapters()
-    local wanted = require("neotasks.config").current.debug_adapters or {}
-    if #wanted == 0 then return {} end
+    local wanted = { "remote" }
+    for _, name in ipairs(require("neotasks.config").current.debug_adapters or {}) do
+        if name ~= "remote" then wanted[#wanted + 1] = name end
+    end
 
     -- The registered names, which cost no adapter load.
     local available = {}

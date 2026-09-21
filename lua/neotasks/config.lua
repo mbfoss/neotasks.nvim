@@ -20,8 +20,8 @@ local defaults = {
     tasks_filename     = "neotasks.toml",
     storage_dir        = ".neotasks",
     lsp_debug_commands = false,
-    -- Mandatory for `debug` tasks: only the adapters named here are loaded from
-    -- ezdap (for performance)
+    -- Only the adapters named here (plus ezdap's built-in `remote`, always
+    -- included) are loaded from ezdap (for performance)
     debug_adapters     = {},
 }
 

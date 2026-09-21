@@ -224,7 +224,8 @@ A debug session through [ezdap.nvim](https://github.com/mbfoss/ezdap.nvim).
 - Available **only when ezdap.nvim is installed**; without it neotasks works
   normally and offers no `debug` type.
 - Usable adapters are those listed in
-  [`setup{ debug_adapters }`](#configuration), which defaults to empty. Only
+  [`setup{ debug_adapters }`](#configuration), which defaults to empty, plus
+  ezdap's built-in `remote` adapter, which is always available. Only
   those adapters' definitions are loaded from ezdap, keeping the schema behind
   completion and diagnostics cheap.
 - A task naming an unlisted adapter fails to start, reporting the adapter to
@@ -514,8 +515,8 @@ require("neotasks").setup({
 })
 ```
 
-- `debug_adapters` is what [`debug`](#debug) tasks may name in `adapter`; empty
-  means no `debug` task runs.
+- `debug_adapters` is what [`debug`](#debug) tasks may name in `adapter`, in
+  addition to the always-included `remote` adapter.
 - `require("neotasks").in_project()` reports whether the cwd is a neotasks
   project.
 

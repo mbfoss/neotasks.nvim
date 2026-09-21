@@ -176,7 +176,7 @@ end
 local function _check_debug_adapters()
     local wanted = require("neotasks.config").current.debug_adapters or {}
     if #wanted == 0 then
-        health.warn("`debug_adapters` is empty, so no `debug` task can start", {
+        health.warn("`debug_adapters` is empty, so only the built-in `remote` adapter is available", {
             "List the adapters you use, e.g. debug_adapters = { 'codelldb' }",
             "See the names available with :lua =require('ezdap').available_adapters()",
         })
