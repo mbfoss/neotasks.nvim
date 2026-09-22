@@ -19,8 +19,8 @@ Public API — [lua/neotasks/init.lua](lua/neotasks/init.lua):
 
 ## Modules
 
-- [config.lua](lua/neotasks/config.lua) — runtime config table (command name,
-  tasks filename, storage dir), mutated in place by `setup`.
+- [config.lua](lua/neotasks/config.lua) — runtime config table (tasks filename,
+  storage dir), mutated in place by `setup`.
 - [project.lua](lua/neotasks/project.lua) — project root, located by finding
   the tasks file in cwd.
 - [commands.lua](lua/neotasks/commands.lua) — `:Neotasks` subcommand dispatch

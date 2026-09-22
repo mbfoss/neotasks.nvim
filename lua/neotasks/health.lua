@@ -56,8 +56,6 @@ end
 local function _check_setup()
     health.start("neotasks: setup")
 
-    local config = require("neotasks.config").current
-
     if _is_setup() then
         health.ok("setup() has been called")
     else
@@ -67,10 +65,10 @@ local function _check_setup()
         return
     end
 
-    if vim.fn.exists(":" .. config.command) == 2 then
-        health.ok((":%s is registered"):format(config.command))
+    if vim.fn.exists(":Neotasks") == 2 then
+        health.ok(":Neotasks is registered")
     else
-        health.error((":%s is not registered"):format(config.command))
+        health.error(":Neotasks is not registered")
     end
 
     local server = require("neotasks.lsp").SERVER_NAME

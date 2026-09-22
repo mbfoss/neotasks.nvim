@@ -8,7 +8,6 @@
 local M = {}
 
 ---@class neotasks.Config
----@field command            string
 ---@field tasks_filename     string
 ---@field storage_dir        string
 ---@field lsp_debug_commands boolean enable LSP debug dump requests (`:Neotasks lsp_dump`)
@@ -16,7 +15,6 @@ local M = {}
 
 ---@type neotasks.Config
 local defaults = {
-    command            = "Neotasks",
     tasks_filename     = "neotasks.toml",
     storage_dir        = ".neotasks",
     lsp_debug_commands = false,

@@ -433,7 +433,7 @@ quickfix_matcher = "luacheck"
 
 ## Tasks command <!-- tag: command -->
 
-The user command (`Neotasks` by default) is the single entry point; with no
+The `:Neotasks` user command is the single entry point; with no
 argument it opens the task picker.
 
 | Invocation              | Action                                                          |
@@ -449,6 +449,14 @@ argument it opens the task picker.
 | `:Neotasks panel`          | Toggle the [output window](#task-output).                       |
 
 Subcommands and task names complete on `<Tab>`.
+
+The command name is fixed. To use a shorter name such as `:Tasks`, define a
+command that forwards its arguments and completion to `:Neotasks`:
+
+```lua
+vim.api.nvim_create_user_command("Tasks", function(o) vim.cmd { cmd = "Neotasks", args = o.fargs } end,
+  { nargs = "*", complete = function(_, l) return vim.fn.getcompletion((l:gsub("^[%s:]*%a+", "Neotasks", 1)), "cmdline") end })
+```
 
 ## Task output <!-- tag: output -->
 
@@ -508,7 +516,6 @@ fields optional, defaults shown:
 
 ```lua
 require("neotasks").setup({
-  command        = "Neotasks",       -- name of the user command
   tasks_filename = "neotasks.toml",  -- per-project tasks file (also the project marker)
   storage_dir    = ".neotasks",  -- per-project state directory
   debug_adapters = {},            -- ezdap adapters usable by `debug` tasks

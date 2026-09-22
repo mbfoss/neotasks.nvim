@@ -61,7 +61,7 @@ end
 --- Create the user command. Its callbacks require the command plumbing and the
 --- subcommands only on first use, so `setup()` stays cheap at startup.
 local function _create_command()
-    vim.api.nvim_create_user_command(config.command, function(opts)
+    vim.api.nvim_create_user_command("Neotasks", function(opts)
         require("neotasks.util.usercmd").handle(opts, require("neotasks.commands").run)
     end, {
         nargs    = "*",
