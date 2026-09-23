@@ -560,8 +560,4 @@ adapters behind `debug`.
 [MIT](LICENSE). Debug support by
 [ezdap.nvim](https://github.com/mbfoss/ezdap.nvim).
 
-## Development <!-- tag: development -->
-
-Internals, tests and conventions: [DEVELOPMENT.md](DEVELOPMENT.md).
-
 <!-- panvimdoc-ignore-end -->
