@@ -45,6 +45,22 @@ make test BUSTED_ARGS="--filter=runner -o gtest"
 - [`tests/init.lua`](tests/init.lua) is the busted helper that sets up the
   environment.
 
+## Demo GIFs
+
+The GIFs the README embeds live on the orphan **`assets`** branch, under
+`demos/`, and are linked by raw.githubusercontent URL — so they never enter the
+plugin's own history or a user's `pack/` checkout:
+
+```sh
+git show assets:demos/01-run-task.gif > /tmp/01.gif   # look at one
+```
+
+They are recorded by the `record-demo` Claude skill in `.claude/`, which drives
+a headless `nvim --listen` through `asciinema` and renders with `agg`; `.claude`
+is excluded from the repo, so the recording harness is local to a checkout that
+has it. To publish a re-recording, commit the new file on `assets`; the README
+needs no change, the URL is stable.
+
 ## The help file
 
 `doc/neotasks.txt` is **generated from `README.md`**: never edit it by hand.

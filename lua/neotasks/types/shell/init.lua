@@ -93,6 +93,10 @@ local M = {
                     if not data then return end
                     local items = {}
                     for _, line in ipairs(data) do
+                        -- The command runs on a PTY, so every line arrives with a
+                        -- trailing carriage return; left on, it ends up inside the
+                        -- matched message text as a literal `^M`.
+                        line = line:gsub("\r+$", "")
                         if line ~= "" then
                             local qf_item = qf_parse(line)
                             if qf_item then items[#items + 1] = qf_item end

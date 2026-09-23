@@ -13,8 +13,23 @@ inline diagnostics while editing the file.
 
 <!-- panvimdoc-ignore-start -->
 
+## Demo
+
+Completing a field in `neotasks.toml`, running `test` from the picker — which
+runs its `build` dependency first, each in its own panel tab — and jumping to
+the failure the quickfix matcher parsed out of the test output.
+
+![Running a task](https://raw.githubusercontent.com/mbfoss/neotasks.nvim/assets/demos/01-run-task.gif)
+
+The panel tabs are [dock.nvim](https://github.com/mbfoss/dock.nvim) and the
+picker is [ezpick.nvim](https://github.com/mbfoss/ezpick.nvim); both are
+optional, see [Task output](#task-output).
+
+---
+
 ## Table of contents
 
+- [Demo](#demo)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)

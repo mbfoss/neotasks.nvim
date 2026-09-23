@@ -44,3 +44,6 @@ luac.out
 /.vscode
 neotasks.nvim.code-workspace
 /.luarocks
+
+# Demo recordings (published on the assets branch)
+/demo-out
