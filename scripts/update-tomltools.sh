@@ -13,7 +13,7 @@
 #   * every internal   require("tomltools…")  is rewritten to
 #                      require("neotasks.tomltools…")
 #
-# LuaCATS annotations (`---@class tomltools.Cst`) are left as upstream's names —
+# LuaCATS annotations (`---@class tomltools.Cst`) are left as upstream's names -
 # they are documentation only and do not affect module resolution.
 #
 # This script mirrors lua/tomltools/*.lua into the vendored prefix with that
@@ -92,7 +92,7 @@ done < <(find "$VENDOR_DIR" -name '*.lua' -print0)
 
 # --- Enforce the invariant: no bare `tomltools` require may survive ----------
 if grep -rEn 'require\(\s*["'"'"']tomltools' "$VENDOR_DIR"; then
-    echo "!! bare 'tomltools' requires remain (above) — the rewrite missed them" >&2
+    echo "!! bare 'tomltools' requires remain (above) - the rewrite missed them" >&2
     exit 1
 fi
 echo "→ ok: every require is namespaced under neotasks.tomltools"
@@ -117,5 +117,5 @@ echo "   make test"
 echo "   git add $VENDOR_DIR $LOCK_FILE && git commit -m 'Update vendored tomltools'"
 echo
 echo "If upstream's public/submodule API changed, update the consumers to match:"
-echo "   runner/exec.lua, commands.lua  — toml.parse / find_path / encode / encode_entry"
-echo "   lsp/server/*                   — parser / decoder / formatter / validator / Cst / schema_*"
+echo "   runner/exec.lua, commands.lua  - toml.parse / find_path / encode / encode_entry"
+echo "   lsp/server/*                   - parser / decoder / formatter / validator / Cst / schema_*"

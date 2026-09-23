@@ -44,7 +44,7 @@ end
 
 --- Widen one input's schema to every form the tasks file may write it in: the
 --- typed form ezdap's input registry states, plus the string form it reads for
---- the same value (`port = "8080"`, `env = "A=1,B=2"`) — `resolve_task` takes
+--- the same value (`port = "8080"`, `env = "A=1,B=2"`) - `resolve_task` takes
 --- either. The typed constraints stay, and apply to the typed form alone.
 ---@param prop table  the input's typed form, as JSON Schema (mutated in place)
 ---@return table
@@ -108,7 +108,7 @@ end
 --- One adapter's conditional branch: it tests only `adapter` and nests the
 --- (adapter, mode) `parameters` branches inside its own `then`, so the
 --- navigator walks only the matched adapter's modes. An adapter declaring no
---- modes gets no branch — an empty `mode` oneOf would reject every value.
+--- modes gets no branch - an empty `mode` oneOf would reject every value.
 ---@param sch table  the `ezdap.schema` module
 ---@param adapter string
 ---@return table?
@@ -243,7 +243,7 @@ function M.start(task, ctx, on_done)
         return function() end
     end
 
-    -- ezdap resolves the mode and runs the session; we present the run — its
+    -- ezdap resolves the mode and runs the session; we present the run - its
     -- buffers, its progress and its outcome arrive through these callbacks, and
     -- ezdap's own panels never see it. A mode's `build` may prompt the user first,
     -- so the run can still be resolving here; `cancel` calls that off too.

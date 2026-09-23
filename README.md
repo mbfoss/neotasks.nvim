@@ -15,8 +15,8 @@ inline diagnostics while editing the file.
 
 ## Demo
 
-Completing a field in `neotasks.toml`, running `test` from the picker — which
-runs its `build` dependency first, each in its own panel tab — and jumping to
+Completing a field in `neotasks.toml`, running `test` from the picker - which
+runs its `build` dependency first, each in its own panel tab - and jumping to
 the failure the quickfix matcher parsed out of the test output.
 
 ![Running a task](https://raw.githubusercontent.com/mbfoss/neotasks.nvim/assets/demos/01-run-task.gif)

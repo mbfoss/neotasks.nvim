@@ -90,7 +90,7 @@ local function value_items(schema, open_quote, ctx)
         }
     end
     -- `enum` is the values a schema *allows*; `examples` the ones it merely suggests
-    -- (a value outside them still validates). Both are offered the same way here —
+    -- (a value outside them still validates). Both are offered the same way here -
     -- only diagnostics tell them apart.
     local listed = schema.enum or schema.examples
     if listed then
@@ -306,7 +306,7 @@ local function cursor_after_equals(cst, kvp_id, row, col)
     return false
 end
 
--- Start position (0-based row, col) of the `=` in a key-value pair — a point
+-- Start position (0-based row, col) of the `=` in a key-value pair - a point
 -- outside any `{{ … }}` slot, used as the forward-scan origin for slot detection.
 ---@param cst    tomltools.Cst
 ---@param kvp_id integer

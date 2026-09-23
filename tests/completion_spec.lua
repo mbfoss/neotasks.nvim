@@ -13,7 +13,7 @@ local completion = require("neotasks.lsp.server.completion")
 local CK         = vim.lsp.protocol.CompletionItemKind
 local IF         = vim.lsp.protocol.InsertTextFormat
 
--- Shared schema fixture — covers scalars, enums, booleans, oneOf, nested
+-- Shared schema fixture - covers scalars, enums, booleans, oneOf, nested
 -- objects, arrays, and arrays-of-tables with nested objects.
 local SCHEMA = {
     type       = "object",
@@ -125,7 +125,7 @@ local function labels(res)
     return out
 end
 
--- Completion labels in handler order (not sorted) — for ordering assertions.
+-- Completion labels in handler order (not sorted) - for ordering assertions.
 local function ordered(res)
     local out = {}
     for _, it in ipairs(res.items or {}) do out[#out + 1] = it.label end
@@ -169,7 +169,7 @@ end)
 -- [table.header] completion
 describe("completion – table headers", function()
     it("suggests all reachable object table paths", function()
-        -- Only object tables (and object sub-tables of an array element) — scalar
+        -- Only object tables (and object sub-tables of an array element) - scalar
         -- and array-of-string properties are not table headers.
         expect("[|", { "db", "db.opts", "server", "tasks.env" })
     end)
@@ -732,7 +732,7 @@ describe("completion – x-completionType registry consistency", function()
             end
             for _, v in pairs(node) do walk(v) end
         end
-        -- Shared base fields — where depends_on and other dynamic-source fields live.
+        -- Shared base fields - where depends_on and other dynamic-source fields live.
         walk(require("neotasks.types.schema").base_properties)
         -- Plus each task type's own static schema fragment. Best effort: a type
         -- whose schema needs an unavailable backend (e.g. `debug` → ezdap) is

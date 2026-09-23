@@ -1,7 +1,7 @@
 --- Pure tokenizer + parser for the `{{ … }}` slot expression grammar.
 ---
 --- This module is *pure*: no `vim` calls, no evaluation, no side effects. It
---- turns the text *inside* a slot into an AST that two consumers walk — the
+--- turns the text *inside* a slot into an AST that two consumers walk - the
 --- runner (to evaluate) and the LSP (to locate the cursor). Keeping it pure lets
 --- the language server import it without dragging in the evaluator.
 ---
@@ -178,7 +178,7 @@ function M.skip_string(src, i)
 end
 
 --- Given `text` ending at a cursor, return the interior of the open `{{ … }}`
---- slot the cursor sits in — what has been typed so far — or `nil`. `text` must
+--- slot the cursor sits in - what has been typed so far - or `nil`. `text` must
 --- begin outside any slot (e.g. just after a `=`) to track slot state forward.
 ---@param text string
 ---@return string? interior
@@ -254,7 +254,7 @@ end
 -- Parser
 
 --- Parse `src` (the inner text of a slot) into a single expression AST. Returns
---- `nil, err` on any syntax error. A parenthesized group is unwrapped — grouping
+--- `nil, err` on any syntax error. A parenthesized group is unwrapped - grouping
 --- only affects precedence, so it leaves no node of its own.
 ---@param src string
 ---@return neotasks.expr.Node? ast, string? err

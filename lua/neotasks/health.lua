@@ -1,4 +1,4 @@
----@brief Health check for neotasks.nvim — run with `:checkhealth neotasks`.
+---@brief Health check for neotasks.nvim - run with `:checkhealth neotasks`.
 ---
 ---Reports the Neovim version and the optional companion plugins, whether
 ---`setup()` has run, the options that differ from the defaults, the tasks file
@@ -108,7 +108,7 @@ local function _diff_config(current, defaults, prefix, out)
     return out
 end
 
----Report the options that differ from the defaults — the whole config would be
+---Report the options that differ from the defaults - the whole config would be
 ---mostly untouched defaults, and the point here is what this user changed.
 ---Anything set that the plugin does not define is flagged: `setup()` merges
 ---`opts` wholesale, so a misspelled option is kept silently.
@@ -146,7 +146,7 @@ local function _check_config()
 end
 
 ---Report the quickfix matchers: the roster a task's `quickfix_matcher` may
----name, then the ones this project's tasks actually require — an unknown name
+---name, then the ones this project's tasks actually require - an unknown name
 ---there is what stops the task from starting.
 local function _check_qfmatchers()
     health.start("neotasks: quickfix matchers")
@@ -168,7 +168,7 @@ local function _check_qfmatchers()
     end
 end
 
----Report the ezdap adapters the `debug` type may use — `debug_adapters`
+---Report the ezdap adapters the `debug` type may use - `debug_adapters`
 ---resolved against ezdap's registry, since only those get a definition loaded
 ---and a task on any other adapter refuses to start.
 local function _check_debug_adapters()

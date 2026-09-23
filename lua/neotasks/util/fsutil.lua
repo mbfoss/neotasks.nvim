@@ -294,7 +294,7 @@ end
 --- Directories are scanned in slices of `slice_ms`; between slices the walk
 --- parks on a `yield_ms` timer so libuv returns to the main loop and Neovim can
 --- process typed keys and redraw. A plain `vim.schedule` chain is not enough
---- here — its callbacks drain within the same loop iteration, so a deep tree
+--- here - its callbacks drain within the same loop iteration, so a deep tree
 --- still holds the UI.
 ---@param dir string
 ---@param opts neotasks.util.fsutil.walk_dir_opts

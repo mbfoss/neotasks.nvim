@@ -3,7 +3,7 @@
 -- over its stdio, this spawns a real vim.uv.new_thread worker
 -- (thread_server.lua) and speaks length-prefixed vim.mpack frames (frame.lua)
 -- over a pair of anonymous pipes. Pass `require("neotasks.lsp.thread.thread_client").start`
--- as `cmd` in a vim.lsp.ClientConfig — see thread_init.lua for the wiring.
+-- as `cmd` in a vim.lsp.ClientConfig - see thread_init.lua for the wiring.
 local frame = require("neotasks.lsp.server.frame")
 
 local M = {}
@@ -36,7 +36,7 @@ function M.start(dispatchers)
 
     -- reader:read_start's callback runs in a libuv "fast event context" where
     -- most vim.api calls are disallowed, and nothing schedules a function-cmd's
-    -- `dispatchers` for us — so defer each here, under its own pcall.
+    -- `dispatchers` for us - so defer each here, under its own pcall.
     local function on_message(msg)
         if msg.id ~= nil and msg.method == nil then
             local cb = message_callbacks[msg.id]

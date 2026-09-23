@@ -190,7 +190,7 @@ encode_value = function(v)
 end
 
 -- Emit TOML lines for a table at section scope.
--- All arrays (including arrays of tables) are encoded inline — [[aot]] is never used
+-- All arrays (including arrays of tables) are encoded inline - [[aot]] is never used
 -- because inline arrays are always valid and avoid a class of nesting ambiguities.
 ---@param path    string[]
 ---@param data    table

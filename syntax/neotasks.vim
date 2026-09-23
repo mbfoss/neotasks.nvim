@@ -38,7 +38,7 @@ syn match   neotasksExprPunct  /[(),]/ contained
 " A callee name (bare ident is a zero-arg call). `true`/`false` are caught by
 " the keyword above, which outranks this match.
 syn match   neotasksExprFunc   /\<[[:alpha:]][[:alnum:]_-]*\>/ contained
-" Verbatim string-literal arguments — both delimiters are accepted (see _delims
+" Verbatim string-literal arguments - both delimiters are accepted (see _delims
 " in expr.lua). No escapes inside.
 syn region  neotasksExprString start=/'/ end=/'/ contained keepend
 syn region  neotasksExprString start=/"/ end=/"/ contained keepend

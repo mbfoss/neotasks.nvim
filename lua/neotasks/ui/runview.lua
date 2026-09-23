@@ -4,10 +4,10 @@
 ---report, plus whatever buffers its task type spawns (terminals, output). Where
 ---those buffers are shown depends on what is installed:
 ---
----  * [dock.nvim](https://github.com/mbfoss/dock.nvim) — each run becomes a dock
+---  * [dock.nvim](https://github.com/mbfoss/dock.nvim) - each run becomes a dock
 ---    group (a tab) with the log buffer and the task's buffers as its pages, and
 ---    dock owns the window, the tab bar and the numbering.
----  * otherwise — a single bottom split
+---  * otherwise - a single bottom split
 ---    ([output_win](lua/neotasks/ui/output_win.lua)) holding the
 ---    highest-priority buffer of whatever is running.
 ---
@@ -90,7 +90,7 @@ local _BADGE     = {
 }
 
 ---Whether a run is still going. Mirrored onto the group's `busy` flag, which is
----presentation only — dock prefers a working tab when picking what to show. Its
+---presentation only - dock prefers a working tab when picking what to show. Its
 ---disposal gate is `can_dispose`, answered by the runner itself.
 ---@param state neotasks.TaskState
 ---@return boolean
@@ -187,9 +187,9 @@ local function _ensure_view(run_id, entry)
     local source = _dock_source()
     if source then
         -- `:Dock clean` asks the tab to shed itself; the answer is the runner's,
-        -- since it owns the run. A finished run is disposed — which deletes its
+        -- since it owns the run. A finished run is disposed - which deletes its
         -- buffers and comes back as the dispose signal that drops this group and
-        -- the log — and a running one simply keeps its tab.
+        -- the log - and a running one simply keeps its tab.
         view.group = source:group({
             id       = run_id,
             label    = entry.task_name,

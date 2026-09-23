@@ -4,7 +4,7 @@
 ---A run registers its log buffer and every buffer its task type spawns here
 ---under its own group. One window is reused for all of them: registering a
 ---buffer swaps the occupant rather than opening a second split. There is no tab
----bar — `neotasks.ui.runview` hands the tabbed presentation to dock.nvim when
+---bar - `neotasks.ui.runview` hands the tabbed presentation to dock.nvim when
 ---it is available.
 ---
 ---The window is ours only while it holds one of those buffers, the way a window
@@ -14,7 +14,7 @@
 ---What the window holds is the newest group's best buffer, mirroring the tab
 ---dock would raise: a group is ranked first by how recently it was registered
 ---into, then by priority among its own buffers. Priority alone cannot say both
----"show the run I just started" and "within a run, output beats the log" — with
+---"show the run I just started" and "within a run, output beats the log" - with
 ---one ranking, a run that fails before spawning anything leaves its log, ranked
 ---below every task buffer, stuck behind an unrelated run's terminal.
 
@@ -70,7 +70,7 @@ local function _prune(bufnr)
 end
 
 ---The buffer the window should hold: from the group registered into most
----recently, its highest-priority buffer — the newest of those on a tie. A
+---recently, its highest-priority buffer - the newest of those on a tie. A
 ---background group only wins when every group is one.
 ---@return integer?  bufnr
 local function _target()
@@ -181,7 +181,7 @@ function M.open(focus)
     end
     -- fixedwin owns the split, its height pinning and the resize/ratio tracking;
     -- we only swap in the run's buffer. Its on_delete fires on WinClosed, so
-    -- closing by any route — ours, `:q` — records the height and drops the state.
+    -- closing by any route - ours, `:q` - records the height and drops the state.
     _win, _fixed_group = fixedwin.create_fixed_win(bufnr, {
         axis = "height", ratio = _ratio or _HEIGHT_RATIO,
         min = _MIN_HEIGHT, enter = focus or false,
@@ -191,7 +191,7 @@ function M.open(focus)
             _win, _shown = nil, nil
             _fixed_group = nil
             -- Only a deletion of the buffer just closed with reopens the window,
-            -- and only on this tick — a `:q` a moment earlier must not.
+            -- and only on this tick - a `:q` a moment earlier must not.
             vim.schedule(function() _closed_with = nil end)
         end,
     })
@@ -202,7 +202,7 @@ function M.open(focus)
     _display(_win, bufnr)
 end
 
----Close the window, keeping the registry — the next registered buffer (or an
+---Close the window, keeping the registry - the next registered buffer (or an
 ---explicit `open`) brings it back at the height it was left at.
 function M.close()
     local win = _open_win()

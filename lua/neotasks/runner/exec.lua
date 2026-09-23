@@ -546,7 +546,7 @@ local function _launch(task_name, tasks, run_id, expressions)
         if co_ok then return end
         local msg    = "coroutine error: " .. tostring(result)
         local orphan = false
-        -- coroutine itself threw — mark any orphaned running entry as failed
+        -- coroutine itself threw - mark any orphaned running entry as failed
         for rid, entry in pairs(_running) do
             if entry.task_name == task_name
                 and (entry.state == "running" or entry.state == "waiting") then

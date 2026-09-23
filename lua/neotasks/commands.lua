@@ -279,7 +279,7 @@ end
 ---@param _opts    vim.api.keyset.create_user_command.command_args
 function M.run(_cmd, args, _opts)
     -- Subscribing here, not on first open, is what gives every run its log
-    -- buffer from its first report onward — even when nothing is on screen yet.
+    -- buffer from its first report onward - even when nothing is on screen yet.
     runview.setup()
 
     local action = args[1]

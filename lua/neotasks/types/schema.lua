@@ -12,7 +12,7 @@ local M = {}
 ---@field exclude?        string[]  glob patterns; matching buffers are never saved
 ---@field include_hidden? boolean   also save hidden files, which are skipped by default
 
---- Fields shared by every task, regardless of type — the Lua-type mirror of
+--- Fields shared by every task, regardless of type - the Lua-type mirror of
 --- `base_properties` below, which concrete task types extend. The name is not
 --- part of this data; the runner hands it over via `RunCtx.name`.
 ---@class neotasks.TaskBase

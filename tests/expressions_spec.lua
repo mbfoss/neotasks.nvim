@@ -378,7 +378,7 @@ describe("inline expression arguments ($1, $2, …)", function()
 
     it("does not leak arguments into a nested argless inline call", function()
         -- `outer` receives an arg; it calls `inner` with NO args, so inner's $1
-        -- must not see outer's argument — it errors instead.
+        -- must not see outer's argument - it errors instead.
         local ok, _, err = resolve({ x = "{{ outer('hi') }}" },
             ctx({ outer = "{{ inner }}", inner = "{{ $1 }}" }))
         assert.is_false(ok)

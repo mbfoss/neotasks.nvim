@@ -1,4 +1,4 @@
--- neotasks LSP server — in-process alternative to server.lua.
+-- neotasks LSP server - in-process alternative to server.lua.
 -- Instead of a headless `nvim --headless -l server.lua` subprocess talking
 -- JSON-RPC over stdio, M.thread_main runs inside a real vim.uv.new_thread
 -- worker and talks length-prefixed vim.mpack frames over a pair of anonymous
@@ -6,7 +6,7 @@
 --
 -- IMPORTANT: this whole function is handed directly to vim.uv.new_thread,
 -- which transfers it via string.dump(). A dumped function carries no
--- upvalues from its enclosing file scope — only its own parameters/locals
+-- upvalues from its enclosing file scope - only its own parameters/locals
 -- survive. So every require() below happens *inside* thread_main, and this
 -- module must not reference any neotasks.lsp.thread.thread_server file-level local.
 local M = {}

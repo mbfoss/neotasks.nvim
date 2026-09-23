@@ -97,7 +97,7 @@ local function _resolve_schema_fns(node)
 end
 
 --- Like build_schema() but with all function-valued enum fields evaluated to
---- concrete arrays — safe to JSON-encode or pass to the validator.
+--- concrete arrays - safe to JSON-encode or pass to the validator.
 ---@return table
 function M.build_resolved_schema()
     local s = vim.deepcopy(M.build_schema())

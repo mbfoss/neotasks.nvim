@@ -90,7 +90,7 @@ end
 -- Built-in expressions
 
 --- Emit a literal `{{`, equivalent to writing `{{{{`. Takes no argument, since
---- passing the braces in would reopen a slot. A literal `}}` needs no escape —
+--- passing the braces in would reopen a slot. A literal `}}` needs no escape -
 --- it is already literal outside a slot.
 ---@return string
 function _expressions.lbrace()
@@ -207,7 +207,7 @@ _descriptions.prompt        = "Ask for input at run time: prompt TEXT [default] 
 -- Public API
 
 --- Look up an expression function by name (built-in or user-registered; both
---- live in the same map, and a user one can never shadow a built-in — see
+--- live in the same map, and a user one can never shadow a built-in - see
 --- `register`).
 ---@param name string
 ---@return neotasks.ExpressionFn?

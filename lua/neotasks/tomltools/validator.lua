@@ -1,4 +1,4 @@
--- JSON Schema Draft 2020-12 validator — partial implementation.
+-- JSON Schema Draft 2020-12 validator - partial implementation.
 --
 -- IMPLEMENTED
 --   Core:        type (incl. "integer"), enum, const
@@ -131,7 +131,7 @@ local function _validate(schema, data, node_id, dt, errors)
         end
     end
 
-    -- object keywords — apply whenever data is an object, regardless of schema.type
+    -- object keywords - apply whenever data is an object, regardless of schema.type
     if type(data) == "table" and not std.islist(data) then
         local props         = schema.properties or {}
         local required      = schema.required or {}
@@ -210,7 +210,7 @@ local function _validate(schema, data, node_id, dt, errors)
         end
     end
 
-    -- array keywords — apply whenever data is an array, regardless of schema.type
+    -- array keywords - apply whenever data is an array, regardless of schema.type
     if std.islist(data) then
         -- prefixItems: positional schemas (Draft 2020-12)
         local prefix_len = 0

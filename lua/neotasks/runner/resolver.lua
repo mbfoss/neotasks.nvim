@@ -17,7 +17,7 @@ local expr = require("neotasks.util.expr")
 --- (a bare `name` is a zero-arg call), verbatim string literals
 --- (`"…"` / `'…'`), numbers, booleans, `$1`/`$2` positional macro
 --- arguments, and the `..` concatenation operator. Nesting is function composition
---- — `upper(env("HOME"))` — so there are no nested `{{ }}` slots and no per-context
+--- - `upper(env("HOME"))` - so there are no nested `{{ }}` slots and no per-context
 --- quoting rules. See docs/expression-grammar.md.
 ---
 --- Because string literals are verbatim, the slot scanner (`_find_span`) skips
@@ -53,7 +53,7 @@ end
 
 --- Run `fn` on the main loop and wait (via coroutine yield) for its result, so an
 --- expression may call `vim.*` APIs freely. `n` is the number of arguments in
---- `args` — passed explicitly so a trailing `nil` argument survives.
+--- `args` - passed explicitly so a trailing `nil` argument survives.
 ---@param fn   function
 ---@param args any[]
 ---@param n    integer
@@ -207,7 +207,7 @@ _expand_value = function(str, ctx)
         end
         if open > i then res[#res + 1] = str:sub(i, open - 1) end
         if str:sub(open + 2, open + 3) == "{{" then
-            -- `{{{{` escapes a literal `{{` — the "double the delimiter" convention.
+            -- `{{{{` escapes a literal `{{` - the "double the delimiter" convention.
             res[#res + 1] = "{{"
             i = open + 4
         else

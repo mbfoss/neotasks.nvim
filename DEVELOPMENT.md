@@ -48,7 +48,7 @@ make test BUSTED_ARGS="--filter=runner -o gtest"
 ## Demo GIFs
 
 The GIFs the README embeds live on the orphan **`assets`** branch, under
-`demos/`, and are linked by raw.githubusercontent URL — so they never enter the
+`demos/`, and are linked by raw.githubusercontent URL - so they never enter the
 plugin's own history or a user's `pack/` checkout:
 
 ```sh

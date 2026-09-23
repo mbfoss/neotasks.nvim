@@ -83,7 +83,7 @@ end
 --- The decoded table a CST node addresses, plus the key path leading to it. The
 --- decoder tags pair, inline-table and section nodes with their DecodeTree id,
 --- so the path comes straight from the decode tree. Returns nil for anything
---- that is not a decoded table — including a node the decoder rejected, and one
+--- that is not a decoded table - including a node the decoder rejected, and one
 --- addressed by an index (an array element), which no path of keys reaches.
 ---@param cst     tomltools.Cst
 ---@param dt      tomltools.DecodeTree
