@@ -64,14 +64,15 @@ pick one your content doesn't contain:
 
 - `"…"` / `'…'` — both verbatim.
 - They double as TOML string delimiters, so mind the *outer* tasks-file value:
-  a `"` inside a TOML basic string is TOML-decoded before our parser sees it.
+  a `"` inside a TOML basic string is TOML-decoded before the expression parser
+  sees it.
   Pair a `'…'` expression string with a TOML basic (`"…"`) value, and a `"…"`
   expression string with a TOML literal (`'…'`) value, to avoid double-layer
   escaping.
-- Escapes come **free from TOML**: it decodes `\n`, `\t` etc. in a basic string
-  before our parser runs and leaves a literal string raw, so a real newline in
-  an expression string is just a real newline passed through. We add no escape
-  layer of our own.
+- Escapes come from TOML: it decodes `\n`, `\t` and the rest in a basic string
+  before the expression parser runs, and leaves a literal string raw, so a real
+  newline in an expression string is a real newline passed through. There is no
+  escape layer on top of that.
 
 Interpolating a value into a string means **concatenating** it; `$1` and
 `{{…}}` inside a string are literal, never expanded:

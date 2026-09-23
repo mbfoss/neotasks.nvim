@@ -23,6 +23,7 @@ Table of Contents                                 *neotasks-table-of-contents*
 11. Task output                                              |neotasks-output|
 12. Editing support                                         |neotasks-editing|
 13. Configuration                                            |neotasks-config|
+14. Health                                                   |neotasks-health|
 A project-local **task runner for Neovim**. Build, test, run and debug tasks
 declared once in a TOML file and launched with `:Neotasks` — with
 dependencies, value expressions, quickfix parsing, a live output window, and
@@ -60,7 +61,7 @@ completion plus inline diagnostics while editing the file.
 ==============================================================================
 2. Requirements                                        *neotasks-requirements*
 
-- **Neovim ≥ 0.11**
+- Neovim >= 0.11
 - ezdap.nvim <https://github.com/mbfoss/ezdap.nvim> — _optional_, required
     only for the `debug` task type.
 - dock.nvim <https://github.com/mbfoss/dock.nvim> — _optional_; when present,
@@ -148,7 +149,7 @@ Tasks go under the `[tasks]` table, keyed by name.
 - Every task must declare a `type`.
 
 >toml
-    # Optional: reusable inline expression macros (see “Expressions”).
+    # Optional: reusable inline expression macros (see Expressions below).
     [expressions]
     outdir = "{{ projectdir }}/build"
     
@@ -246,7 +247,8 @@ A debug session through ezdap.nvim <https://github.com/mbfoss/ezdap.nvim>.
 - Available **only when ezdap.nvim is installed**; without it neotasks works
     normally and offers no `debug` type.
 - Usable adapters are those listed in
-    |neotasks-`setup{-debug_adapters-}`|, which defaults to empty. Only
+    |neotasks-`setup{-debug_adapters-}`|, which defaults to empty, plus
+    ezdap’s built-in `remote` adapter, which is always available. Only
     those adapters’ definitions are loaded from ezdap, keeping the schema behind
     completion and diagnostics cheap.
 - A task naming an unlisted adapter fails to start, reporting the adapter to
@@ -483,8 +485,8 @@ ANSI escapes already stripped, and returns a quickfix item for that line or
 
 - `context` is a fresh table per task run, so a matcher can carry state between
     lines — e.g. remembering a location printed on a preceding line and attaching
-    it to the diagnostic that follows (how `gcc` resolves template “required from
-    here” chains).
+    it to the diagnostic that follows (how `gcc` resolves template "required
+    from here" chains).
 - Register at `setup` time or any point before the task runs.
 - Registered names appear in LSP completion for `quickfix_matcher` and shadow a
     built-in of the same name, so `gcc` or `unix` can be replaced.
@@ -500,8 +502,8 @@ ANSI escapes already stripped, and returns a quickfix item for that line or
 ==============================================================================
 10. Tasks command                                           *neotasks-command*
 
-The `:Neotasks` user command is the single entry point; with no
-argument it opens the task picker.
+The `:Neotasks` user command is the single entry point; with no argument it
+opens the task picker.
 
   ---------------------------------------------------------------------------
   Invocation              Action
@@ -566,7 +568,7 @@ Disposal:
 - `:Neotasks panel` toggles the window.
 - `:Neotasks clean one` disposes a finished run, buffers included;
     `:Neotasks clean` disposes every finished run.
-- Disposal always goes through the runner, whichever end asks —`:Neotasks`, or
+- Disposal always goes through the runner, whichever end asks — `:Neotasks`, or
     `:Dock clean` on the tab. The runner owns the run, so it decides whether the
     run may go and it deletes the buffers; the view only asks, and reacts once it
     has happened.
@@ -607,19 +609,23 @@ fields optional, defaults shown:
     })
 <
 
-- `debug_adapters` is what |neotasks-`debug`| tasks may name in `adapter`; empty
-    means no `debug` task runs.
+- `debug_adapters` is what |neotasks-`debug`| tasks may name in `adapter`, in
+    addition to the always-included `remote` adapter.
 - `require("neotasks").in_project()` reports whether the cwd is a neotasks
     project.
+
+
+==============================================================================
+14. Health                                                   *neotasks-health*
 
 >vim
     :checkhealth neotasks
 <
 
-reports the Neovim version, the optional companion plugins, whether `setup()`
-has run, options differing from the defaults, the tasks file found for the cwd
-(and whether it loads), and the registered task types with the ezdap adapters
-behind `debug`.
+Reports the Neovim version, the optional companion plugins, whether `setup()`
+has run, the options differing from the defaults, the tasks file found for the
+cwd (and whether it loads), and the registered task types with the ezdap
+adapters behind `debug`.
 
 Generated by panvimdoc <https://github.com/kdheepak/panvimdoc>
 

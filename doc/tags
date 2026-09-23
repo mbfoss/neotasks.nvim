@@ -8,6 +8,7 @@ neotasks-debug	neotasks.txt	/*neotasks-debug*
 neotasks-editing	neotasks.txt	/*neotasks-editing*
 neotasks-expressions	neotasks.txt	/*neotasks-expressions*
 neotasks-features	neotasks.txt	/*neotasks-features*
+neotasks-health	neotasks.txt	/*neotasks-health*
 neotasks-installation	neotasks.txt	/*neotasks-installation*
 neotasks-macros	neotasks.txt	/*neotasks-macros*
 neotasks-matchers	neotasks.txt	/*neotasks-matchers*

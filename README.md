@@ -33,6 +33,7 @@ inline diagnostics while editing the file.
 - [Task output](#task-output)
 - [Editing support](#editing-support)
 - [Configuration](#configuration)
+- [Health](#health)
 - [License](#license)
 
 ---
@@ -63,7 +64,7 @@ inline diagnostics while editing the file.
 
 ## Requirements
 
-- **Neovim ≥ 0.11**
+- Neovim >= 0.11
 - [ezdap.nvim](https://github.com/mbfoss/ezdap.nvim) — *optional*, required
   only for the `debug` task type.
 - [dock.nvim](https://github.com/mbfoss/dock.nvim) — *optional*; when present,
@@ -141,7 +142,7 @@ Tasks go under the `[tasks]` table, keyed by name.
 - Every task must declare a `type`.
 
 ```toml
-# Optional: reusable inline expression macros (see “Expressions”).
+# Optional: reusable inline expression macros (see Expressions below).
 [expressions]
 outdir = "{{ projectdir }}/build"
 
@@ -382,7 +383,7 @@ Built-in matchers:
 
 | Name     | Tooling                                             |
 | -------- | --------------------------------------------------- |
-| `gcc`    | GCC / Clang (incl. template “required from” chains) |
+| `gcc`    | GCC / Clang (incl. template "required from" chains) |
 | `msvc`   | MSVC (`file(line): error CXXXX: …`)                 |
 | `tsc`    | TypeScript compiler                                 |
 | `go`     | Go compiler                                         |
@@ -418,8 +419,8 @@ end)
 
 - `context` is a fresh table per task run, so a matcher can carry state between
   lines — e.g. remembering a location printed on a preceding line and attaching
-  it to the diagnostic that follows (how `gcc` resolves template “required from
-  here” chains).
+  it to the diagnostic that follows (how `gcc` resolves template "required
+  from here" chains).
 - Register at `setup` time or any point before the task runs.
 - Registered names appear in LSP completion for `quickfix_matcher` and shadow a
   built-in of the same name, so `gcc` or `unix` can be replaced.
@@ -485,7 +486,7 @@ Disposal:
 - `:Neotasks panel` toggles the window.
 - `:Neotasks clean one` disposes a finished run, buffers included;
   `:Neotasks clean` disposes every finished run.
-- Disposal always goes through the runner, whichever end asks —`:Neotasks`, or
+- Disposal always goes through the runner, whichever end asks — `:Neotasks`, or
   `:Dock clean` on the tab. The runner owns the run, so it decides whether the
   run may go and it deletes the buffers; the view only asks, and reacts once it
   has happened.
@@ -527,20 +528,26 @@ require("neotasks").setup({
 - `require("neotasks").in_project()` reports whether the cwd is a neotasks
   project.
 
+## Health <!-- tag: health -->
+
 ```vim
 :checkhealth neotasks
 ```
 
-reports the Neovim version, the optional companion plugins, whether `setup()`
-has run, options differing from the defaults, the tasks file found for the cwd
-(and whether it loads), and the registered task types with the ezdap adapters
-behind `debug`.
+Reports the Neovim version, the optional companion plugins, whether `setup()`
+has run, the options differing from the defaults, the tasks file found for the
+cwd (and whether it loads), and the registered task types with the ezdap
+adapters behind `debug`.
 
 <!-- panvimdoc-ignore-start -->
 
-## License
+## License <!-- tag: license -->
 
 [MIT](LICENSE). Debug support by
 [ezdap.nvim](https://github.com/mbfoss/ezdap.nvim).
+
+## Development <!-- tag: development -->
+
+Internals, tests and conventions: [DEVELOPMENT.md](DEVELOPMENT.md).
 
 <!-- panvimdoc-ignore-end -->
