@@ -1,4 +1,4 @@
-# Expression grammar — design spec (draft)
+# Expression grammar: design spec (draft)
 
 Status: **draft, for review.** Function-call expression grammar for the
 interior of a `{{ … }}` slot in
@@ -9,8 +9,8 @@ interior of a `{{ … }}` slot in
 One uniform model inside a slot: function calls, comma-separated arguments,
 verbatim string literals.
 
-- Nesting is function composition `f(g(x))` — no recursive brace matching, no
-  per-context quoting rules.
+- Nesting is function composition `f(g(x))`, with no recursive brace matching
+  and no per-context quoting rules.
 - Same syntax family as HCL, GitHub Actions `${{ }}`, Jinja expressions.
 - Non-goal: control flow (`if`/`for`). This is value interpolation, not
   templating.
@@ -18,7 +18,7 @@ verbatim string literals.
 ## Delimiters & top-level rules
 
 - A slot is `{{ … }}`. Only `{{` is special; everything else at the top level
-  is literal — a bare `$`, `\`, lone `}`, or DAP-style `${var}` passes through
+  is literal: a bare `$`, `\`, lone `}`, or DAP-style `${var}` passes through
   untouched.
 - `{{{{` emits a literal `{{`; `lbrace()` does the same from expression
   position.
@@ -52,17 +52,17 @@ expression, so `name` is unambiguously a zero-arg call.
 - `$` + a letter → **reserved** for future named params (parse error for now).
 
 A literal `$` never needs an escape: outside slots and inside verbatim string
-literals it is an ordinary character — which is why DAP-style `${var}` passes
+literals it is an ordinary character, which is why DAP-style `${var}` passes
 through untouched and `'$'` yields `$`. In expression position a `$` is only
 ever wanted as text, and text belongs in a string.
 
 ### Strings, quoting, and TOML
 
-A string literal is the exact bytes between its delimiters — no escape
+A string literal is the exact bytes between its delimiters: no escape
 sequences, no interpolation. Two interchangeable delimiters exist so you can
 pick one your content doesn't contain:
 
-- `"…"` / `'…'` — both verbatim.
+- `"…"` / `'…'`: both verbatim.
 - They double as TOML string delimiters, so mind the *outer* tasks-file value:
   a `"` inside a TOML basic string is TOML-decoded before the expression parser
   sees it.
@@ -94,7 +94,7 @@ The scanner finding a slot's closing `}}` skips string contents, so braces and
 
 ### Concatenation operator
 
-- `..` — the only operator in v1; stringifies both operands.
+- `..`: the only operator in v1; stringifies both operands.
 - No arithmetic (a `lua(…)` call if ever needed).
 - `+ - * / | . []` are **reserved** by the tokenizer (clear parse error), so
   pipelines and arithmetic can be added later cleanly.
@@ -140,7 +140,7 @@ reserved for that.
 
 ## Module layout
 
-The grammar lives in **one pure module** — tokenizer + parser producing an AST,
+The grammar lives in **one pure module**: tokenizer + parser producing an AST,
 with **no `vim` calls and no evaluation**. Both consumers import it:
 
 - **Runner** ([resolver.lua](../lua/neotasks/runner/resolver.lua)) walks the
@@ -151,7 +151,7 @@ with **no `vim` calls and no evaluation**. Both consumers import it:
   and signature help.
 
 Proposed home: `util/expr.lua` (per the shared-helpers convention). Purity is
-what matters — the LSP must not pull in the evaluator's side effects.
+what matters: the LSP must not pull in the evaluator's side effects.
 `expressions.lua` stays the function **registry**; the evaluator stays in the
 runner.
 
@@ -159,7 +159,7 @@ runner.
 
 `M.register(name, fn)` and the `neotasks.ExpressionFn` signature (`fn(ctx, …)`)
 are unchanged; a function receives its evaluated arguments positionally. There
-is no "raw-body" flavor — a verbatim string literal covers that need.
+is no "raw-body" flavor; a verbatim string literal covers that need.
 
 ## LSP impact
 
@@ -172,8 +172,8 @@ A real parser upgrades completion:
 
 ## Decisions
 
-1. **Pipelines** — deferred; `|` is reserved by the tokenizer, so pipes can be
+1. **Pipelines**: deferred; `|` is reserved by the tokenizer, so pipes can be
    added later without a breaking change. `f(g(x))` + `..` covers the pain now.
-2. **Concat token** — `..` (Lua-native, no arithmetic confusion).
-3. **Macro params** — positional `$1`, `$2`, …; `$` + letter reserved for
+2. **Concat token**: `..` (Lua-native, no arithmetic confusion).
+3. **Macro params**: positional `$1`, `$2`, …; `$` + letter reserved for
    future named params.

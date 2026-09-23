@@ -1,7 +1,7 @@
 # neotasks.nvim
 
 A project-local **task runner for Neovim**. Build, test, run and debug tasks
-declared once in a TOML file and launched with `:Neotasks` — with dependencies,
+declared once in a TOML file and launched with `:Neotasks`, with dependencies,
 value expressions, quickfix parsing, a live output window, and completion plus
 inline diagnostics while editing the file.
 
@@ -42,32 +42,32 @@ inline diagnostics while editing the file.
 
 ## Features
 
-- **One TOML file per project** — tasks live in `neotasks.toml` at the project
+- **One TOML file per project**: tasks live in `neotasks.toml` at the project
   root; that file's presence *is* what marks a directory as a project.
-- **Built-in task types** — a program directly (`process`), through a shell
+- **Built-in task types**: a program directly (`process`), through a shell
   (`shell`), a group of other tasks (`composite`), or a debug session
   (`debug`, via [ezdap.nvim](https://github.com/mbfoss/ezdap.nvim)).
-- **Task dependencies** — `depends_on`, run in `sequence` or `parallel` before
+- **Task dependencies**: `depends_on`, run in `sequence` or `parallel` before
   the task itself.
-- **Concurrency policies** — `wait`, `restart`, `refuse`, `parallel` when a
+- **Concurrency policies**: `wait`, `restart`, `refuse`, `parallel` when a
   task is already running.
-- **Value expressions** — current file, cwd, environment, shell output or
+- **Value expressions**: current file, cwd, environment, shell output or
   interactive prompts interpolated into task values through a small `{{ … }}`
   language, plus your own reusable inline macros.
-- **Quickfix parsing** — compiler/linter/test output into the quickfix list via
+- **Quickfix parsing**: compiler/linter/test output into the quickfix list via
   a named matcher (GCC, TypeScript, Go, Rust, Python and more built in).
-- **Smart editing** — completion, hover, diagnostics, code actions and
+- **Editing support**: completion, hover, diagnostics, code actions and
   formatting in the tasks file.
-- **Live task output** — a bottom split streaming the running task, with a
+- **Live task output**: a bottom split streaming the running task, with a
   per-run log buffer. With [dock.nvim](https://github.com/mbfoss/dock.nvim),
   each run gets its own numbered tab instead.
 
 ## Requirements
 
 - Neovim >= 0.11
-- [ezdap.nvim](https://github.com/mbfoss/ezdap.nvim) — *optional*, required
+- [ezdap.nvim](https://github.com/mbfoss/ezdap.nvim): *optional*, required
   only for the `debug` task type.
-- [dock.nvim](https://github.com/mbfoss/dock.nvim) — *optional*; when present,
+- [dock.nvim](https://github.com/mbfoss/dock.nvim): *optional*; when present,
   task output goes to the shared dock panel, one tab per run, instead of the
   plugin's own split.
 
@@ -131,7 +131,7 @@ require("neotasks").setup()
    ```
 
 Editing `neotasks.toml` gives completion, hover docs and inline diagnostics for
-every field — see [Editing support](#editing-support).
+every field; see [Editing support](#editing-support).
 
 ## Tasks file <!-- tag: tasks-file -->
 
@@ -173,7 +173,7 @@ are per-type.
 Runs a command **directly, without a shell**.
 
 - A string command is split into argv by POSIX shell-word rules.
-- An array is used verbatim — no splitting, globbing or shell operators.
+- An array is used verbatim: no splitting, globbing or shell operators.
 
 ```toml
 [tasks.lint]
@@ -203,7 +203,7 @@ type    = "shell"
 command = "npm run build && rsync -a dist/ server:/var/www"
 ```
 
-Fields as `process`, except `command` must be a single **string** — the shell
+Fields as `process`, except `command` must be a single **string**: the shell
 command line.
 
 ### `composite`
@@ -240,7 +240,7 @@ require("neotasks").setup({ debug_adapters = { "codelldb", "delve" } })
 :lua =require("ezdap").available_adapters()
 ```
 
-Each adapter publishes **named modes** — its launch/attach shapes — picked with
+Each adapter publishes **named modes** (its launch/attach shapes) picked with
 `mode` and filled through `parameters`.
 
 ```toml
@@ -303,7 +303,7 @@ Any task value can contain **`{{ … }}` slots**, evaluated when the task runs.
 
 - Slot interior: function calls, comma-separated arguments, string literals,
   numbers, booleans, `..` concatenation.
-- Nesting is function composition — `f(g(x))`.
+- Nesting is function composition: `f(g(x))`.
 - A value with slots is always string interpolation: each result is stringified
   into place (`nil` becomes an empty string), whether the value is one slot or
   slots mixed with literal text.
@@ -332,7 +332,7 @@ env     = { API_KEY = "{{ env('API_KEY') }}", REV = "{{ shell('git rev-parse --s
 | `prompt(TEXT, default?, completion?)`   | Ask for input at run time.                                       |
 | `lbrace`                                | A literal `{{` (escape hatch; same as `{{{{`).                   |
 
-Strings inside a slot use `"…"` or `'…'` and are **always verbatim** — no
+Strings inside a slot use `"…"` or `'…'` and are **always verbatim**: no
 escape sequences, no nested interpolation; pick the quote your content lacks.
 Build values up with `..`:
 
@@ -418,7 +418,7 @@ end)
 ```
 
 - `context` is a fresh table per task run, so a matcher can carry state between
-  lines — e.g. remembering a location printed on a preceding line and attaching
+  lines, e.g. remembering a location printed on a preceding line and attaching
   it to the diagnostic that follows (how `gcc` resolves template "required
   from here" chains).
 - Register at `setup` time or any point before the task runs.
@@ -461,20 +461,20 @@ vim.api.nvim_create_user_command("Tasks", function(o) vim.cmd { cmd = "Neotasks"
 
 ## Task output <!-- tag: output -->
 
-Every run gets its own scratch log buffer — a timestamped record of
-dependencies waited on, the resolved task, files saved, and how it ended —
-named after the run, e.g. `neotasks://build#1`, alongside whatever buffers the
-task type spawns (a terminal per `process`/`shell` task, streaming live).
+Every run gets its own scratch log buffer, a timestamped record of dependencies
+waited on, the resolved task, files saved, and how it ended, named after the
+run, e.g. `neotasks://build#1`, alongside whatever buffers the task type spawns
+(a terminal per `process`/`shell` task, streaming live).
 
 Where those buffers appear:
 
-- **With [dock.nvim](https://github.com/mbfoss/dock.nvim)** — one numbered tab
+- **With [dock.nvim](https://github.com/mbfoss/dock.nvim)**: one numbered tab
   per run in the shared dock panel, with a status badge (`▶` running, `✓` ok,
   `✗` failed, `⧗` waiting on dependencies) and one page per buffer. Click a tab
   to switch; new output on an inactive tab is flagged unread. `:Dock clean`
   asks each tab to shed itself: a finished run is disposed, buffers and all; a
   running one keeps its tab.
-- **Without it** — a single bottom split showing the highest-priority buffer of
+- **Without it**: a single bottom split showing the highest-priority buffer of
   the running task, swapping the occupant rather than stacking splits. A task's
   terminal outranks its log, so the log shows until there is real output. Like
   the quickfix window, the split is ours only while it holds one of those
@@ -486,7 +486,7 @@ Disposal:
 - `:Neotasks panel` toggles the window.
 - `:Neotasks clean one` disposes a finished run, buffers included;
   `:Neotasks clean` disposes every finished run.
-- Disposal always goes through the runner, whichever end asks — `:Neotasks`, or
+- Disposal always goes through the runner, whichever end asks, `:Neotasks` or
   `:Dock clean` on the tab. The runner owns the run, so it decides whether the
   run may go and it deletes the buffers; the view only asks, and reacts once it
   has happened.
@@ -496,12 +496,12 @@ Disposal:
 Opening the tasks file gives schema-aware editing, covering the task types,
 adapters and expressions available in your setup:
 
-- **Completion** — task types, field names, enum values, dependency task names,
+- **Completion**: task types, field names, enum values, dependency task names,
   and expression names/arguments inside `{{ … }}`.
-- **Diagnostics** — schema validation, unknown fields, type errors and
+- **Diagnostics**: schema validation, unknown fields, type errors and
   malformed expressions, inline as you type.
-- **Hover** — field and expression documentation.
-- **Code actions** — fill in a task's missing required fields, expand or
+- **Hover**: field and expression documentation.
+- **Code actions**: fill in a task's missing required fields, expand or
   collapse an inline table or array, and move between the two ways of writing a
   table (`env = { … }` ↔ a `[tasks.build.env]` section).
 - **Formatting** for the TOML document.

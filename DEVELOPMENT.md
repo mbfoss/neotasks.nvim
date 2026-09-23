@@ -38,7 +38,7 @@ make test BUSTED_ARGS=tests/completion_spec.lua
 make test BUSTED_ARGS="--filter=runner -o gtest"
 ```
 
-- busted must already be installed for Lua 5.1 — the version Neovim embeds —
+- busted must already be installed for Lua 5.1 (the version Neovim embeds),
   with `luarocks --lua-version=5.1 --local install busted`; `make test` fails
   if it is missing rather than installing anything.
 - Specs are discovered through [`.busted`](.busted).
@@ -47,7 +47,7 @@ make test BUSTED_ARGS="--filter=runner -o gtest"
 
 ## The help file
 
-`doc/neotasks.txt` is **generated from `README.md`** — never edit it by hand.
+`doc/neotasks.txt` is **generated from `README.md`**: never edit it by hand.
 [scripts/gendoc.sh](scripts/gendoc.sh) runs the README through
 [panvimdoc](https://github.com/kdheepak/panvimdoc) and refreshes `doc/tags`:
 
@@ -64,14 +64,14 @@ scripts/gendoc.sh --check --diff   # …and show what changed
   reproducible; the script refuses a cache that has drifted off that commit.
 - `PANVIMDOC_DIR` points at a checkout of your own instead.
 - Anything between `<!-- panvimdoc-ignore-start -->` and
-  `<!-- panvimdoc-ignore-end -->` is left out of the help file — that is how
+  `<!-- panvimdoc-ignore-end -->` is left out of the help file: that is how
   the markdown table of contents and the license section are kept out.
 
 ### Help tags
 
 panvimdoc derives a section's tag from its heading text, so
 `## Shared task options` would become `*neotasks-shared-task-options*`. A
-trailing `<!-- tag: … -->` comment picks the tag instead — project name
+trailing `<!-- tag: … -->` comment picks the tag instead: project name
 prefixed automatically, comment invisible on GitHub:
 
 ```markdown
@@ -112,7 +112,8 @@ a **git subtree** (not a submodule), so a fresh clone needs no extra fetch.
 **Invariant:** every internal `require("tomltools…")` inside the vendored files
 is rewritten to `require("neotasks.tomltools…")`; the update script re-applies
 this on every sync. LuaCATS annotations (`---@class tomltools.Cst`, etc.) keep
-the upstream names — documentation only, no effect on module resolution.
+the upstream names, for documentation only, with no effect on module
+resolution.
 
 ### Updating the vendored engine
 
@@ -135,17 +136,17 @@ git add lua/neotasks/tomltools scripts/tomltools.lock
 git commit -m "Update vendored tomltools"
 ```
 
-The pinned commit may lag `main` on purpose — pass an explicit ref to move it.
+The pinned commit may lag `main` on purpose; pass an explicit ref to move it.
 
 ### After updating: check the consuming API
 
 If the `tomltools` public or submodule API changed, these call sites must
 follow:
 
-- `runner/exec.lua`, `commands.lua` — `toml.parse`, `toml.find_path`,
+- `runner/exec.lua`, `commands.lua`: `toml.parse`, `toml.find_path`,
   `toml.encode` (whole-document → `string`), `toml.encode_entry` (styled
   snippet → `string[]`).
-- `lsp/server/*` — direct use of submodules `parser`, `decoder`, `formatter`,
+- `lsp/server/*`: direct use of submodules `parser`, `decoder`, `formatter`,
   `validator`, `Cst`, `schema_nav`, `schema_util`.
 
 Smoke test, besides `make test`: open a `neotasks.toml` (LSP
