@@ -1,0 +1,5 @@
+/.claude
+/demo-out
+/.neotasks
+.luarocks/bin/busted
+/.luarocks
