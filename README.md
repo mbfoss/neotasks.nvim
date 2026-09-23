@@ -434,8 +434,7 @@ end)
 
 - `context` is a fresh table per task run, so a matcher can carry state between
   lines, e.g. remembering a location printed on a preceding line and attaching
-  it to the diagnostic that follows (how `gcc` resolves template "required
-  from here" chains).
+  it to the diagnostic that follows.
 - Register at `setup` time or any point before the task runs.
 - Registered names appear in LSP completion for `quickfix_matcher` and shadow a
   built-in of the same name, so `gcc` or `unix` can be replaced.
