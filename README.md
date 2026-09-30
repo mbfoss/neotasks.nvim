@@ -21,9 +21,9 @@ the failure the quickfix matcher parsed out of the test output.
 
 ![Running a task](https://raw.githubusercontent.com/mbfoss/neotasks.nvim/assets/demos/01-run-task.gif)
 
-The panel tabs are [dock.nvim](https://github.com/mbfoss/dock.nvim) and the
-picker is [ezpick.nvim](https://github.com/mbfoss/ezpick.nvim); both are
-optional, see [Task output](#task-output).
+The task-output panel is built in and the picker is
+[ezpick.nvim](https://github.com/mbfoss/ezpick.nvim), which is optional; see
+[Task output](#task-output).
 
 ---
 
@@ -73,18 +73,14 @@ optional, see [Task output](#task-output).
   a named matcher (GCC, TypeScript, Go, Rust, Python and more built in).
 - **Editing support**: completion, hover, diagnostics, code actions and
   formatting in the tasks file.
-- **Live task output**: a bottom split streaming the running task, with a
-  per-run log buffer. With [dock.nvim](https://github.com/mbfoss/dock.nvim),
-  each run gets its own numbered tab instead.
+- **Live task output**: a built-in panel streaming every running task, one
+  numbered tab per run, each with its own log buffer and status badge.
 
 ## Requirements
 
 - Neovim >= 0.11
 - [ezdap.nvim](https://github.com/mbfoss/ezdap.nvim): *optional*, required
   only for the `debug` task type.
-- [dock.nvim](https://github.com/mbfoss/dock.nvim): *optional*; when present,
-  task output goes to the shared dock panel, one tab per run, instead of the
-  plugin's own split.
 
 ## Installation
 
@@ -461,7 +457,7 @@ argument it opens the task picker.
 | `:Neotasks cancel`         | Stop **all** running tasks.                                     |
 | `:Neotasks eval [expr]`    | Evaluate an expression (or bare expression name) and echo it.  |
 | `:Neotasks template`       | Insert a task template at the cursor (only in the tasks file). |
-| `:Neotasks panel`          | Toggle the [output window](#task-output).                       |
+| `:Neotasks panel [sub]`    | Drive the [output panel](#task-output): `open`, `close`, `toggle` (default), `next`, `prev`, `jump N`. |
 
 Subcommands and task names complete on `<Tab>`.
 
@@ -480,30 +476,34 @@ waited on, the resolved task, files saved, and how it ended, named after the
 run, e.g. `neotasks://build#1`, alongside whatever buffers the task type spawns
 (a terminal per `process`/`shell` task, streaming live).
 
-Where those buffers appear:
+Those buffers appear in the built-in output panel: a split at the bottom of the
+editor whose winbar is a flat, numbered list of runs. Each run is one tab, with
+a status badge (`▶` running, `✓` ok, `✗` failed, `⧗` waiting on dependencies),
+and a tab that spawns more than one buffer (its log plus a terminal, say) shows
+a page per buffer in brackets. The panel opens itself on every new run, sized
+by `panel.size`.
 
-- **With [dock.nvim](https://github.com/mbfoss/dock.nvim)**: one numbered tab
-  per run in the shared dock panel, with a status badge (`▶` running, `✓` ok,
-  `✗` failed, `⧗` waiting on dependencies) and one page per buffer. Click a tab
-  to switch; new output on an inactive tab is flagged unread. `:Dock clean`
-  asks each tab to shed itself: a finished run is disposed, buffers and all; a
-  running one keeps its tab.
-- **Without it**: a single bottom split showing the highest-priority buffer of
-  the running task, swapping the occupant rather than stacking splits. A task's
-  terminal outranks its log, so the log shows until there is real output. Like
-  the quickfix window, the split is ours only while it holds one of those
-  buffers: edit a file in it and it becomes an ordinary window, and the next
-  run opens a fresh split.
+- Click a numbered tab, or `:Neotasks panel jump N`, to switch; `next`/`prev`
+  step through the numbering. New output on a tab that is not on screen is
+  flagged unread.
+- A task's terminal outranks its log after the same run, so the log shows until
+  there is real output.
+- The panel is shared by every Neovim tabpage - the same tabs, each tabpage
+  showing or hiding its own view of them.
 
 Disposal:
 
-- `:Neotasks panel` toggles the window.
+- `:Neotasks panel` toggles the panel; `open`, `close`, `toggle` name it
+  explicitly, and `:Neotasks panel close!`-style `all` closing is not exposed
+  (close affects only the current tabpage).
 - `:Neotasks clean one` disposes a finished run, buffers included;
   `:Neotasks clean` disposes every finished run.
-- Disposal always goes through the runner, whichever end asks, `:Neotasks` or
-  `:Dock clean` on the tab. The runner owns the run, so it decides whether the
-  run may go and it deletes the buffers; the view only asks, and reacts once it
-  has happened.
+- Disposal always goes through the runner: it owns the run, so it decides
+  whether the run may go and it deletes the buffers; the view only reacts once
+  it has happened.
+
+See [Configuration](#configuration) for `panel.position`, `panel.size` and the
+winbar options.
 
 ## Editing support <!-- tag: editing -->
 
@@ -534,11 +534,26 @@ require("neotasks").setup({
   tasks_filename = "neotasks.toml",  -- per-project tasks file (also the project marker)
   storage_dir    = ".neotasks",  -- per-project state directory
   debug_adapters = {},            -- ezdap adapters usable by `debug` tasks
+
+  -- the task-output panel
+  panel = {
+    position   = "bottom",  -- "bottom" | "top" | "left" | "right"
+    size       = 0.22,      -- fraction of editor lines/columns (0..1)
+    min_size   = 6,         -- floor in lines/columns
+    empty_text = "No pages",
+    winbar     = {
+      separator = "│",      -- drawn between adjacent tabs
+      unread    = "•",      -- marker on a tab with unseen output
+      numbers   = true,     -- prefix each tab with its jump number
+    },
+  },
 })
 ```
 
 - `debug_adapters` is what [`debug`](#debug) tasks may name in `adapter`, in
   addition to the always-included `remote` adapter.
+- `panel` configures the [task-output panel](#task-output). A run opens it on
+  its own; these values only place and size it.
 - `require("neotasks").in_project()` reports whether the cwd is a neotasks
   project.
 
@@ -548,10 +563,10 @@ require("neotasks").setup({
 :checkhealth neotasks
 ```
 
-Reports the Neovim version, the optional companion plugins, whether `setup()`
-has run, the options differing from the defaults, the tasks file found for the
-cwd (and whether it loads), and the registered task types with the ezdap
-adapters behind `debug`.
+Reports the Neovim version, the optional companion plugin (ezdap), whether
+`setup()` has run, the options differing from the defaults, the tasks file found
+for the cwd (and whether it loads), and the registered task types with the
+ezdap adapters behind `debug`.
 
 <!-- panvimdoc-ignore-start -->
 

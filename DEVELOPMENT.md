@@ -15,7 +15,7 @@ lua/neotasks/            plugin source
   types/                  task-type registry + built-ins + schema merge
   expressions.lua              ${name} value substitutions
   lsp/                    in-process language server for the tasks file
-  ui/                     task output (dock.nvim tabs, or a plain split)
+  ui/                     task output panel (panel, group, winbar)
   util/                   shared helpers
   tomltools/              VENDORED TOML engine (git subtree, see below)
 tests/                    busted specs

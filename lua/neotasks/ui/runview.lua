@@ -1,97 +1,50 @@
 ---@brief The presentation layer for task runs.
 ---
 ---Every run gets its own scratch log buffer holding its timestamped progress
----report, plus whatever buffers its task type spawns (terminals, output). Where
----those buffers are shown depends on what is installed:
----
----  * [dock.nvim](https://github.com/mbfoss/dock.nvim) - each run becomes a dock
----    group (a tab) with the log buffer and the task's buffers as its pages, and
----    dock owns the window, the tab bar and the numbering.
----  * otherwise - a single bottom split
----    ([output_win](lua/neotasks/ui/output_win.lua)) holding the
----    highest-priority buffer of whatever is running.
+---report, plus whatever buffers its task type spawns (terminals, output), all
+---shown in the built-in output panel (see
+---[panel.lua](lua/neotasks/ui/panel.lua)): the run becomes a numbered tab with a
+---status badge, and its log and task buffers become the tab's pages. The panel
+---owns the window, the tab bar and the numbering.
 ---
 ---This module is the only subscriber to the runner's signals; it is loaded with
 ---the user command, so a run is captured whether or not the view is on screen.
 
-local exec       = require("neotasks.runner.exec")
-local output_win = require("neotasks.ui.output_win")
-local uiutil     = require("neotasks.util.ui")
+local exec   = require("neotasks.runner.exec")
+local panel  = require("neotasks.ui.panel")
+local uiutil = require("neotasks.util.ui")
 
 ---@class neotasks.ui.runview
-local M          = {}
-
--- dock.nvim is optional, so its own types are not resolvable from this plugin
--- alone. These declare the slice of its API used here; dock.nvim documents the
--- full contract (its Source, Group and Badge types).
----@class neotasks.ui.DockBadge
----@field icon string
----@field hl   string
-
----@class neotasks.ui.DockGroup
----@field page       fun(self, spec: { buf: integer, label?: string, priority?: integer })
----@field set_badge  fun(self, badge: neotasks.ui.DockBadge?)
----@field set_busy   fun(self, busy: boolean)
----@field is_removed fun(self): boolean
----@field remove     fun(self)
-
----@class neotasks.ui.DockSource
----@field group fun(self, spec: table): neotasks.ui.DockGroup
+local M      = {}
 
 ---Cap on a log buffer's line count; `_append` trims oldest lines past this.
 local _MAX_LOG_LINES = 10000
 
----One run's view: its log buffer, the dock group when dock.nvim is present, and
----the task buffers already registered for display.
+---One run's view: its log buffer, its panel group, and the task buffers already
+---registered for display.
 ---@class neotasks.ui.runview.View
 ---@field run_id  string
 ---@field log_buf integer
----@field group   neotasks.ui.DockGroup?
+---@field group   neotasks.ui.Group
 ---@field bufs    table<integer, true>  task buffers already shown
 
 ---@type table<string, neotasks.ui.runview.View>
 local _views     = {}
 
--- dock.nvim backend
-
----@type neotasks.ui.DockSource?
-local _source    = nil
-
----The dock source, or nil when dock.nvim is not installed. Resolved once and
----kept: a plugin that appears mid-session is picked up on the next new run.
----@return neotasks.ui.DockSource?
-local function _dock_source()
-    if _source then return _source end
-    local ok, dock = pcall(require, "dock")
-    if not ok or type(dock) ~= "table" or type(dock.source) ~= "function" then
-        return nil
-    end
-    _source = dock.source("neotasks")
-    return _source
-end
-
----@return table? dock  the dock module, when installed
-local function _dock()
-    if _source then return require("dock") end
-    local ok, dock = pcall(require, "dock")
-    return ok and dock or nil
-end
-
--- Badges are constant per state: dock compares them by identity, so reusing the
--- same table keeps a no-op `set_badge` from redrawing the tab bar.
----@type table<neotasks.TaskState, neotasks.ui.DockBadge>
+-- Badges are constant per state: the panel compares them by identity, so reusing
+-- the same table keeps a no-op `set_badge` from redrawing the tab bar.
+---@type table<neotasks.TaskState, neotasks.ui.Badge>
 local _BADGE     = {
-    running = { icon = "▶", hl = "DockBadgeHint" },
-    waiting = { icon = "⧗", hl = "DockBadgeHint" },
-    ok      = { icon = "✓", hl = "DockBadgeOk" },
-    failed  = { icon = "✗", hl = "DockBadgeErr" },
-    stopped = { icon = "✗", hl = "DockBadgeWarn" },
-    idle    = { icon = "●", hl = "DockBadgeMuted" },
+    running = { icon = "▶", hl = "NeotasksBadgeHint" },
+    waiting = { icon = "⧗", hl = "NeotasksBadgeHint" },
+    ok      = { icon = "✓", hl = "NeotasksBadgeOk" },
+    failed  = { icon = "✗", hl = "NeotasksBadgeErr" },
+    stopped = { icon = "✗", hl = "NeotasksBadgeWarn" },
+    idle    = { icon = "●", hl = "NeotasksBadgeMuted" },
 }
 
 ---Whether a run is still going. Mirrored onto the group's `busy` flag, which is
----presentation only - dock prefers a working tab when picking what to show. Its
----disposal gate is `can_dispose`, answered by the runner itself.
+---presentation only - the panel prefers a working tab when picking what to show.
 ---@param state neotasks.TaskState
 ---@return boolean
 local function _is_active(state)
@@ -182,43 +135,21 @@ local function _ensure_view(run_id, entry)
     end
     _append(log_buf, lines)
 
-    view = { run_id = run_id, log_buf = log_buf, bufs = {} }
+    -- The run the user asked for takes the panel even while they work inside it
+    -- (the panel's default focus lets a restart lose it); a dependency never
+    -- takes it, so a failure leaves them on the task they ran.
+    local group = panel.get():group({
+        id    = run_id,
+        label = entry.task_name,
+        badge = _BADGE[entry.state] or _BADGE.idle,
+        busy  = _is_active(entry.state),
+        focus = entry.primary and "always" or "never",
+    })
+    -- Ranked below every task buffer so the run's own output wins the panel as
+    -- soon as there is any; until then the log is what there is to show.
+    group:page({ buf = log_buf, label = "log", priority = -1 })
 
-    local source = _dock_source()
-    if source then
-        -- `:Dock clean` asks the tab to shed itself; the answer is the runner's,
-        -- since it owns the run. A finished run is disposed - which deletes its
-        -- buffers and comes back as the dispose signal that drops this group and
-        -- the log - and a running one simply keeps its tab.
-        view.group = source:group({
-            id       = run_id,
-            label    = entry.task_name,
-            badge    = _BADGE[entry.state] or _BADGE.idle,
-            busy     = _is_active(entry.state),
-            -- The run the user asked for takes the panel even while they work
-            -- inside it (dock's default lets a restart lose it); a dependency
-            -- never takes it, so a failure leaves them on the task they ran.
-            focus    = entry.primary and "always" or "never",
-            on_clean = function(group)
-                local ok = exec.dispose(run_id)
-                -- A tab whose run the runner has already forgotten has nothing
-                -- left to tear down; it is stale rather than kept, so it goes.
-                if not ok and not exec.get_all()[run_id] then group:remove() end
-            end,
-        })
-        -- Ranked below every task buffer so the run's own output wins the panel
-        -- as soon as there is any; until then the log is what there is to show.
-        view.group:page({ buf = log_buf, label = "log", priority = -1 })
-    else
-        -- The split's counterpart of the group above: same run, same ranking,
-        -- and the same rule that a dependency never takes it over.
-        output_win.add(log_buf, {
-            group      = run_id,
-            priority   = -1,
-            background = not entry.primary,
-        })
-    end
-
+    view = { run_id = run_id, log_buf = log_buf, group = group, bufs = {} }
     _views[run_id] = view
     return view
 end
@@ -228,7 +159,7 @@ end
 local function _on_state_change(run_id, entry)
     local view = _ensure_view(run_id, entry)
 
-    if view.group and not view.group:is_removed() then
+    if not view.group:is_removed() then
         view.group:set_badge(_BADGE[entry.state] or _BADGE.idle)
         view.group:set_busy(_is_active(entry.state))
     end
@@ -236,18 +167,8 @@ local function _on_state_change(run_id, entry)
     for _, be in ipairs(entry.bufnrs) do
         if not view.bufs[be.bufnr] and vim.api.nvim_buf_is_valid(be.bufnr) then
             view.bufs[be.bufnr] = true
-            -- A view built on a dock group stays on dock even once the group is
-            -- gone; falling back to the split here would mix the two backends.
-            if view.group then
-                if not view.group:is_removed() then
-                    view.group:page({ buf = be.bufnr, label = be.label, priority = be.priority })
-                end
-            else
-                output_win.add(be.bufnr, {
-                    group      = run_id,
-                    priority   = be.priority,
-                    background = not entry.primary,
-                })
+            if not view.group:is_removed() then
+                view.group:page({ buf = be.bufnr, label = be.label, priority = be.priority })
             end
         end
     end
@@ -269,11 +190,10 @@ local function _on_dispose(run_id)
     if not view then return end
     _views[run_id] = nil
 
-    if view.group and not view.group:is_removed() then
+    if not view.group:is_removed() then
         view.group:remove()
     end
     if vim.api.nvim_buf_is_valid(view.log_buf) then
-        if not view.group then output_win.remove(view.log_buf) end
         pcall(vim.api.nvim_buf_delete, view.log_buf, { force = true })
     end
 end
@@ -292,30 +212,14 @@ end
 
 -- Public API
 
----Show the view without taking the cursor.
+---Show the panel without taking the cursor.
 function M.open()
-    local dock = _dock()
-    if dock then
-        dock.open()
-    else
-        output_win.open(false)
-    end
+    panel.open()
 end
 
----Toggle the view, focusing it when it opens.
+---Toggle the panel, focusing it when it opens.
 function M.toggle()
-    local dock = _dock()
-    if dock then
-        dock.toggle({ enter = true })
-        return
-    end
-    -- The plain split has no placeholder to show, so an empty one would just be
-    -- a blank window the user has to close again.
-    if not output_win.is_open() and not output_win.has_content() then
-        require("neotasks.ui").notify_warning("no task output yet")
-        return
-    end
-    output_win.toggle(true)
+    panel.toggle({ enter = true })
 end
 
 return M

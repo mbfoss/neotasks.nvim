@@ -56,10 +56,11 @@ Public API, [lua/neotasks/init.lua](lua/neotasks/init.lua):
 - [ui/](lua/neotasks/ui/): task output.
   [runview.lua](lua/neotasks/ui/runview.lua) is the only subscriber to the
   runner's signals: it gives every run its own scratch log buffer and shows
-  that plus the run's task buffers, either as a
-  [dock.nvim](https://github.com/mbfoss/dock.nvim) group (one tab per run) or
-  in the plain bottom split of
-  [output_win.lua](lua/neotasks/ui/output_win.lua).
+  that plus the run's task buffers as a tab in the built-in output panel (one
+  numbered, badged tab per run, one page per buffer), rendered by
+  [winbar.lua](lua/neotasks/ui/winbar.lua).
+  [panel.lua](lua/neotasks/ui/panel.lua) owns the window - one per Neovim
+  tabpage - and [group.lua](lua/neotasks/ui/group.lua) is a single tab.
 - [util/](lua/neotasks/util/): shared helpers (async, signals, terminal,
   windows, ...).
 

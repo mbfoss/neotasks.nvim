@@ -83,7 +83,7 @@ end
 --- pinned along the cross axis with the same ratio, which follows user resizes.
 ---@param buf integer  buffer to display; 0 for the current buffer
 ---@param opts neotasks.util.fixedwin.Opts
----@return integer winid, integer group
+---@return integer? winid, integer? group, string? error  both nil when the split cannot be made
 function M.create_fixed_win(buf, opts)
     local axis, ratio, on_delete = opts.axis, opts.ratio, opts.on_delete
     local spec = assert(_AXES[axis], "fixedwin: unknown axis " .. tostring(axis))
@@ -91,9 +91,14 @@ function M.create_fixed_win(buf, opts)
     local min = opts.min or 1
     local split = assert(spec.sides[opts.pos or "botright"], "fixedwin: unknown pos " .. tostring(opts.pos))
 
-    -- win = -1 splits at the editor edge, like :topleft/:botright
-    local win = vim.api.nvim_open_win(buf, opts.enter or false, { split = split, win = -1 }) ---@type integer?
-    assert(win)
+    -- win = -1 splits at the editor edge, like :topleft/:botright. A split needs
+    -- room for a second window; in an editor with none left nvim_open_win()
+    -- raises E36 rather than returning, and that must not escape to the caller
+    -- (a source's group()/page() call) as an error.
+    local opened ---@type boolean
+    local win ---@type integer?
+    opened, win = pcall(vim.api.nvim_open_win, buf, opts.enter or false, { split = split, win = -1 })
+    if not opened or not win then return nil, nil, tostring(win) end
 
     win_setlocal(win, spec.fix, true)
 
@@ -210,7 +215,7 @@ function M.create_fixed_win(buf, opts)
         end)
     end
 
-    local group = vim.api.nvim_create_augroup("NeoToolitFixedWin" .. win, { clear = true })
+    local group = vim.api.nvim_create_augroup("NeotasksFixedWin" .. win, { clear = true })
 
     -- re-apply the size when a new *split* appears so the window stays pinned
     vim.api.nvim_create_autocmd("WinNew", {

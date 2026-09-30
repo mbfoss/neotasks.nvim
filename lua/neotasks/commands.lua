@@ -185,6 +185,35 @@ local function _clean_command(args)
     end)
 end
 
+---Drive the task-output panel: `:Neotasks panel` (no subcommand) toggles it,
+---and the rest mirror the panel's own window/navigation API.
+---@param args string[]
+local function _panel_command(args)
+    local panel = require("neotasks.ui.panel")
+    local sub   = args[1]
+
+    if sub == nil or sub == "" or sub == "toggle" then
+        runview.toggle()
+    elseif sub == "open" then
+        panel.open({ enter = true })
+    elseif sub == "close" then
+        panel.close()
+    elseif sub == "next" then
+        panel.cycle(1, { enter = true })
+    elseif sub == "prev" then
+        panel.cycle(-1, { enter = true })
+    elseif sub == "jump" then
+        local n = tonumber(args[2])
+        if not n then
+            ui.notify_warning("jump needs a tab number")
+        elseif not panel.jump(n, { enter = true }) then
+            ui.notify_warning("no tab " .. n)
+        end
+    else
+        ui.notify_warning("invalid panel subcommand: " .. tostring(sub))
+    end
+end
+
 ---@param args string[]
 local function _lsp_dump_command(args)
     if not config.lsp_debug_commands then
@@ -301,7 +330,7 @@ function M.run(_cmd, args, _opts)
     elseif action == "lsp_dump" then
         _lsp_dump_command(args)
     elseif action == "panel" then
-        runview.toggle()
+        _panel_command(args)
     else
         ui.notify_warning("Invalid action: " .. tostring(action))
     end
@@ -336,6 +365,9 @@ function M.complete(_cmd, rest, _arg_lead)
     end
     if rest[1] == "clean" and #rest == 1 then
         return { "all", "one" }
+    end
+    if rest[1] == "panel" and #rest == 1 then
+        return { "open", "close", "toggle", "next", "prev", "jump" }
     end
     if rest[1] == "lsp_dump" and #rest == 1 then
         return { "cst", "decode_tree", "data", "schema" }

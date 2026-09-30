@@ -1,6 +1,6 @@
 ---@brief Health check for neotasks.nvim - run with `:checkhealth neotasks`.
 ---
----Reports the Neovim version and the optional companion plugins, whether
+---Reports the Neovim version and the optional companion plugin (ezdap), whether
 ---`setup()` has run, the options that differ from the defaults, the tasks file
 ---found for the cwd, and the registered task types (with the ezdap adapters the
 ---`debug` type may use).
@@ -24,7 +24,7 @@ local function _is_setup()
 end
 
 ---Check the Neovim version against the plugin's minimum (see
----`plugin/neotasks.lua`) and report the optional companion plugins.
+---`plugin/neotasks.lua`) and report the optional companion plugin.
 local function _check_requirements()
     health.start("neotasks: dependencies")
 
@@ -32,8 +32,8 @@ local function _check_requirements()
         health.error("neotasks.nvim requires Neovim >= 0.11")
     end
 
-    -- Both are optional. ezdap names its adapters without a setup(), but a
-    -- `debug` task cannot start before one.
+    -- Optional. ezdap names its adapters without a setup(), but a `debug` task
+    -- cannot start before one.
     if not pcall(require, "ezdap.schema") then
         health.info("ezdap.nvim is not installed, so there is no `debug` task type")
     elseif require("ezdap").is_setup() then
@@ -42,12 +42,6 @@ local function _check_requirements()
         health.warn("ezdap.nvim is installed but require('ezdap').setup() has not been called", {
             "Call require('ezdap').setup() from your config; until then no `debug` task can start",
         })
-    end
-
-    if pcall(require, "dock") then
-        health.ok("dock.nvim is installed (task output goes to the dock panel)")
-    else
-        health.info("dock.nvim is not installed, so task output goes to a bottom split")
     end
 end
 

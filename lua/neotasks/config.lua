@@ -7,11 +7,24 @@
 ---stays current.
 local M = {}
 
+---@class neotasks.Config.Panel.Winbar
+---@field separator string  drawn between adjacent group tabs
+---@field unread    string  marker appended to a tab with unseen output
+---@field numbers   boolean prefix each tab with its jump number
+
+---@class neotasks.Config.Panel
+---@field position   "bottom"|"top"|"left"|"right" where the panel splits
+---@field size       number  fraction of editor lines/columns (0..1)
+---@field min_size   integer floor in lines/columns
+---@field empty_text string  shown when the panel has no page to show
+---@field winbar     neotasks.Config.Panel.Winbar
+
 ---@class neotasks.Config
 ---@field tasks_filename     string
 ---@field storage_dir        string
 ---@field lsp_debug_commands boolean enable LSP debug dump requests (`:Neotasks lsp_dump`)
 ---@field debug_adapters     string[] ezdap adapters the `debug` task type may use
+---@field panel              neotasks.Config.Panel  the task-output panel
 
 ---@type neotasks.Config
 local defaults = {
@@ -21,6 +34,20 @@ local defaults = {
     -- Only the adapters named here (plus ezdap's built-in `remote`, always
     -- included) are loaded from ezdap (for performance)
     debug_adapters     = {},
+
+    -- The task-output panel: a fixed split whose winbar lists one numbered tab
+    -- per run. A run opens it on its own; the values here only place and size it.
+    panel              = {
+        position   = "bottom",
+        size       = 0.22,
+        min_size   = 6,
+        empty_text = "No pages",
+        winbar     = {
+            separator = "│",
+            unread    = "•",
+            numbers   = true,
+        },
+    },
 }
 
 ---The live options, at the defaults until `setup()` applies the user's. Always
@@ -58,6 +85,17 @@ end
 ---@param opts neotasks.Config?
 function M.apply(opts)
     _refill(M.current, vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {}))
+end
+
+---Split spec for the configured `panel.position`: which axis fixedwin pins and
+---which placement modifier puts the split on that edge of the editor.
+---@return "height"|"width" axis, string pos
+function M.split_spec()
+    local pos = M.current.panel.position
+    if pos == "top" then return "height", "topleft" end
+    if pos == "left" then return "width", "topleft" end
+    if pos == "right" then return "width", "botright" end
+    return "height", "botright"
 end
 
 return M
