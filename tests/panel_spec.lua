@@ -8,20 +8,25 @@
 -- shows that buffer afterwards. The panel's bar therefore reaches windows it
 -- never drew -- a window split off the panel, or any window that enters a run
 -- buffer the panel has since left, including one that existed before the panel
--- did. Such a window is not in `self._wins`, so no render ever touches it and
--- the copy would stand for good. Every bar the renderer builds ends with a
+-- did. Such a window is not the panel's (`self._win`), so no render ever touches
+-- it and the copy would stand for good. Every bar the renderer builds ends with a
 -- zero-width click region on the panel's own handler; that signature is what
 -- the guard looks for in a window it does not own.
 --
 -- What a window's bar comes out as is what Neovim's own drawing would make of
 -- it, so the specs ask Neovim to build it the same way.
+--
+-- The panel is also one window for the whole editor rather than one per Neovim
+-- tabpage: switching tabpages leaves it where it is, and asking for it in
+-- another one brings it over. Those specs live in the nested `describe` at the
+-- end.
 
 local panel = require("neotasks.ui.panel")
 
 -- The tail every bar the panel draws carries (see `winbar.build`).
 local MARK = "%0@v:lua._neotasks_panel_click@%X"
 
-describe("winbar", function()
+describe("panel", function()
     local p
     ---@type integer[]  scratch buffers, deleted with the test that made them
     local bufs
@@ -74,6 +79,7 @@ describe("winbar", function()
         p:close({ all = true })
         for _, g in ipairs(p:groups()) do g:remove() end
         for _, buf in ipairs(bufs) do pcall(vim.api.nvim_buf_delete, buf, { force = true }) end
+        vim.cmd("silent! tabonly")
         vim.cmd("silent! only")
     end)
 
@@ -171,5 +177,119 @@ describe("winbar", function()
         vim.cmd("doautocmd BufWinEnter")
 
         assert.equals(own, vim.wo[win].winbar)
+    end)
+
+    -- One window for the whole editor, rather than one per tabpage, all of them
+    -- views of the same panel. It stays in the tabpage it was opened in: entering
+    -- another one leaves it behind, and what brings it over is asking for it
+    -- there -- which is what a run starting, or any `:Neotasks panel` command,
+    -- does.
+    describe("across tabpages", function()
+        it("stays where it is when the user enters another tabpage", function()
+            local log = make_buf({ "run output" })
+            p:group({ id = "g1", label = "build" }):page({ buf = log, label = "log", priority = 1 })
+            p:jump(1)
+
+            local win   = p:win()
+            local first = vim.api.nvim_get_current_tabpage()
+            assert.is_truthy(win)
+
+            vim.cmd("tabnew")
+
+            -- still open, still in the tabpage it was opened in -- just not here
+            assert.is_nil(p:win())
+            assert.is_false(p:is_open())
+            assert.equals(win, p:_any_win())
+            assert.equals(first, vim.api.nvim_win_get_tabpage(win))
+        end)
+
+        it("comes over when the user asks for it here", function()
+            local log = make_buf({ "run output" })
+            p:group({ id = "g1", label = "build" }):page({ buf = log, label = "log", priority = 1 })
+            p:jump(1)
+
+            local win   = p:win()
+            local first = vim.api.nvim_get_current_tabpage()
+            vim.cmd("tabnew")
+            p:open()
+
+            -- here now, buffer and all, and the window it left is gone
+            local moved = p:win()
+            assert.is_truthy(moved)
+            assert.equals(vim.api.nvim_get_current_tabpage(), vim.api.nvim_win_get_tabpage(moved))
+            assert.equals(log, vim.api.nvim_win_get_buf(moved))
+            assert.is_false(vim.api.nvim_win_is_valid(win))
+            assert.equals(1, #vim.api.nvim_tabpage_list_wins(first))
+        end)
+
+        it("comes over when a run starts here", function()
+            p:open()
+            local win = p:win()
+            vim.cmd("tabnew")
+
+            -- a run opening its tab is a request for the panel, like any other
+            local out = make_buf({ "run output" })
+            p:group({ id = "g1", label = "build" }):page({ buf = out, label = "out", priority = 1 })
+
+            local moved = p:win()
+            assert.is_truthy(moved)
+            assert.is_false(vim.api.nvim_win_is_valid(win))
+            assert.equals(out, vim.api.nvim_win_get_buf(moved))
+        end)
+
+        it("is one window, wherever the user has been", function()
+            p:open()
+            local first = p:win()
+            vim.cmd("tabnew")
+            vim.cmd("tabnew")
+            p:open()
+            assert.is_false(vim.api.nvim_win_is_valid(first))
+
+            -- one window holding a bar of the panel's, and it is the current one
+            local holding = {}
+            for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
+                for _, w in ipairs(vim.api.nvim_tabpage_list_wins(tab)) do
+                    if signed(w) then holding[#holding + 1] = w end
+                end
+            end
+            assert.same({ p:win() }, holding)
+        end)
+
+        it("closes when the tabpage it is in closes", function()
+            p:open()
+            vim.cmd("tabnew")
+            p:open()
+            local win = p:win()
+            assert.is_truthy(win)
+
+            vim.cmd("tabclose")  -- takes the panel's tabpage, and so the panel
+
+            assert.is_false(p:is_open())
+            assert.is_false(vim.api.nvim_win_is_valid(win))
+            -- and it does not come back in the tabpage landed in
+            assert.equals(1, #vim.api.nvim_tabpage_list_wins(0))
+        end)
+
+        it("leaves no tabpage behind when it was its tabpage's only window", function()
+            local log = make_buf({ "run output" })
+            p:group({ id = "g1", label = "build" }):page({ buf = log, label = "log", priority = 1 })
+            p:jump(1)
+
+            -- Close the window the panel was split off, leaving it alone in its
+            -- tabpage: the one it is rebuilt out of when the panel comes over.
+            local first = p:win()
+            vim.cmd("close")
+            assert.same({ first }, vim.api.nvim_tabpage_list_wins(0))
+
+            vim.cmd("tabnew")
+            p:open()
+
+            local win = p:win()
+            assert.is_truthy(win)
+            assert.is_not_equal(first, win)
+            assert.equals(log, vim.api.nvim_win_get_buf(win))
+            -- the tabpage the old window emptied went with it
+            assert.equals(1, vim.fn.tabpagenr("$"))
+        end)
     end)
 end)

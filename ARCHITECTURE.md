@@ -59,8 +59,9 @@ Public API, [lua/neotasks/init.lua](lua/neotasks/init.lua):
   that plus the run's task buffers as a tab in the built-in output panel (one
   numbered, badged tab per run, one page per buffer), rendered by
   [winbar.lua](lua/neotasks/ui/winbar.lua).
-  [panel.lua](lua/neotasks/ui/panel.lua) owns the window - one per Neovim
-  tabpage - and [group.lua](lua/neotasks/ui/group.lua) is a single tab.
+  [panel.lua](lua/neotasks/ui/panel.lua) owns the window - a single one for the
+  whole editor, in the tabpage it was last opened in - and
+  [group.lua](lua/neotasks/ui/group.lua) is a single tab.
 - [util/](lua/neotasks/util/): shared helpers (async, signals, terminal,
   windows, ...).
 

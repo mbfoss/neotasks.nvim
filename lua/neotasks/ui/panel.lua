@@ -7,10 +7,13 @@
 ---closing the panel only tears down that window, so re-opening restores every
 ---tab exactly as it was.
 ---
----There is one panel for the whole editor, shared by every Neovim tabpage: the
----same groups, the same tab bar, the same page on screen. A window is what is
----per-tabpage: each tab can show or hide the panel on its own, and every open
----one is a view of the same panel.
+---There is one panel for the whole editor, and one window: not a window per
+---Neovim tabpage, but a single window, in the tabpage it was last opened in.
+---Switching tabpages leaves it there -- it does not follow the user around.
+---What brings it over is asking for it here, which is what `Panel:open` does
+---(a run starting, a `:Neotasks panel` command); every entry point goes through
+---it. Closing the tabpage holding the panel closes the panel: a window of the
+---layout like any other.
 
 local config_mod = require("neotasks.config")
 local config     = config_mod.current
@@ -22,17 +25,15 @@ local winbar     = require("neotasks.ui.winbar")
 local Group      = require("neotasks.ui.group")
 
 ---@class neotasks.ui.panel
----@field _wins        table<integer, integer>  tabpage handle -> that tab's panel window
----@field _pending     table<integer, true>       tabpages to (re)open in when the user next enters them
+---@field _win         integer?                   the panel window, in whichever tabpage that is
 ---@field _augroup     integer?                   panel-wide autocmds, created with the instance
 ---@field _groups      neotasks.ui.Group[]
 ---@field _by_id       table<string, neotasks.ui.Group>
 ---@field _seq         integer                    id counter for groups created without an id
 ---@field _active      neotasks.ui.Group?
 ---@field _active_page integer                    index into _active.pages; 0 when the group has none
----@field _shown_buf   integer?                   buffer currently in the panel windows
----@field _closing_buf integer?                   buffer on screen when a window last closed, for one tick
----@field _closing_tabs table<integer, true>?     tabpages whose window closed in that same tick
+---@field _shown_buf   integer?                   buffer currently in the panel window
+---@field _closing_buf integer?                   buffer on screen when the window last closed, for one tick
 ---@field _ratio       number?                    last-known size ratio, persisted across open/close
 ---@field _targets     neotasks.ui.panel.Target[] jump number -> what it selects; rebuilt on every render
 ---@field _follow      neotasks.ui.Group?         group allowed to take over even while the panel is focused
@@ -58,8 +59,6 @@ local _instance = nil ---@type neotasks.ui.panel?
 function Panel.new()
     assert(not _instance, "neotasks: Panel is a singleton; use Panel.get()")
     local self = setmetatable({
-        _wins        = {},
-        _pending     = {},
         _groups      = {},
         _by_id       = {},
         _seq         = 0,
@@ -98,30 +97,27 @@ local _CLICK = "v:lua._neotasks_panel_click"
 -- away or left out.
 local _BAR_MARK = string.format("%%0@%s@%%X", _CLICK)
 
---- Every live panel window, keyed by tabpage. Stale entries (window closed with
---- its tabpage, say) are dropped on the way past.
----@return table<integer, integer>  tabpage handle -> window id
-function Panel:wins()
-    local out = {}
-    for tab, win in pairs(self._wins) do
-        if vim.api.nvim_tabpage_is_valid(tab) and vim.api.nvim_win_is_valid(win) then
-            out[tab] = win
-        else
-            self._wins[tab] = nil
-        end
-    end
-    return out
+--- The panel window, wherever it is, dropping it from the record when Neovim has
+--- closed it.
+---@return integer?
+function Panel:_any_win()
+    local win = self._win
+    if win and vim.api.nvim_win_is_valid(win) then return win end
+    self._win = nil
+    return nil
 end
 
---- The panel window of a tabpage, the current one unless `tab` says otherwise.
+--- The panel window, when it is the one in `tab` -- the current tabpage unless
+--- told otherwise. The panel stays in the tabpage it was opened in, so this is
+--- nil whenever the user is somewhere else, not only while the panel is closed.
 ---@param tab? integer  tabpage handle
 ---@return integer?
 function Panel:win(tab)
+    local win = self:_any_win()
+    if not win then return nil end
     tab = tab or vim.api.nvim_get_current_tabpage()
-    local win = self._wins[tab]
-    if win and vim.api.nvim_win_is_valid(win) then return win end
-    self._wins[tab] = nil
-    return nil
+    if vim.api.nvim_win_get_tabpage(win) ~= tab then return nil end
+    return win
 end
 
 --- Whether this tabpage is showing the panel.
@@ -131,24 +127,15 @@ function Panel:is_open(tab)
     return self:win(tab) ~= nil
 end
 
---- Whether any tabpage at all is showing the panel.
----@return boolean
-function Panel:is_open_anywhere()
-    return next(self:wins()) ~= nil
-end
-
 ---@param win integer
 ---@return boolean
 function Panel:_owns_win(win)
-    for _, w in pairs(self:wins()) do
-        if w == win then return true end
-    end
-    return false
+    return win == self._win
 end
 
---- True while the user has a panel window focused. Auto-takeover is suppressed in
---- that case, so background activity never yanks the view out from under someone
---- working inside the panel.
+--- True while the user has the panel window focused. Auto-takeover is suppressed
+--- in that case, so background activity never yanks the view out from under
+--- someone working inside the panel.
 ---@return boolean
 function Panel:_is_focused()
     return self:_owns_win(vim.api.nvim_get_current_win())
@@ -159,30 +146,6 @@ end
 function Panel:_setup_autocmds()
     local group = vim.api.nvim_create_augroup("NeotasksPanel", { clear = true })
     self._augroup = group
-
-    vim.api.nvim_create_autocmd({ "TabEnter", "TabNew" }, {
-        group    = group,
-        callback = function()
-            local tab = vim.api.nvim_get_current_tabpage()
-            if self._pending[tab] then
-                self._pending[tab] = nil
-                self:open()
-            end
-        end,
-    })
-
-    -- A tabpage can close before the user ever enters it, and `_pending` is keyed
-    -- by handle: drop the dead ones rather than carry them for the session.
-    -- (<afile> on TabClosed is the tab *number*, so the handles are checked
-    -- directly instead of translated.)
-    vim.api.nvim_create_autocmd("TabClosed", {
-        group    = group,
-        callback = function()
-            for tab in pairs(self._pending) do
-                if not vim.api.nvim_tabpage_is_valid(tab) then self._pending[tab] = nil end
-            end
-        end,
-    })
 
     -- 'winbar' is a per-buffer window option (`:h w_onebuf_opt`): the value a
     -- window sets is stored on the buffer it was showing, and every window that
@@ -211,7 +174,7 @@ function Panel:_setup_autocmds()
     vim.api.nvim_create_autocmd({ "WinResized", "ColorScheme" }, {
         group    = group,
         callback = function()
-            if self:is_open_anywhere() then
+            if self:_any_win() then
                 highlight.setup()
                 self:_refresh_winbar()
             end
@@ -219,27 +182,69 @@ function Panel:_setup_autocmds()
     })
 end
 
---- Show the panel in the current tabpage. Other tabpages are left alone: they
---- are views of this same panel, each opened and closed on its own.
+--- Replace the panel window with a fresh one in the current tabpage, showing what
+--- the old one showed, and close the old one. A window carried to another
+--- tabpage by `nvim_win_set_config` arrives at the size it had in the layout it
+--- came from -- nothing re-pins it there, and Neovim raises no event that would
+--- have fixedwin do it -- so the panel comes over by being built again rather
+--- than moved. Nothing is closed until the replacement stands, so a tabpage
+--- without room for the split leaves the panel where it was; the emptied
+--- tabpage goes with the window it held nothing else in.
+---@return boolean ok, string? error
+function Panel:_rebuild()
+    local old     = self._win
+    self._win     = nil
+    local ok, err = self:_create_win()
+    if not ok then
+        self._win = old
+        return false, err
+    end
+    -- The window is out of the record already, so its close is not mistaken for
+    -- the panel's own (see _on_win_closed).
+    if old and vim.api.nvim_win_is_valid(old) then
+        pcall(vim.api.nvim_win_close, old, false)
+    end
+    return true
+end
+
+--- Show the panel here: build its window, or replace the one it has left behind
+--- in another tabpage (see `_rebuild`) with one here. Asking for the panel is the
+--- only thing that brings it over, so a run starting in another tabpage, or a
+--- `:Neotasks panel` command, each comes down to this.
 ---@param opts? { enter?: boolean }
 ---@return boolean ok, string? error  false when there is no room for the split
 function Panel:open(opts)
     opts = opts or {}
-    local tab      = vim.api.nvim_get_current_tabpage()
-    local existing = self:win(tab)
+    local existing = self:win()
     if existing then
         if opts.enter then vim.api.nvim_set_current_win(existing) end
         return true
     end
-    self._pending[tab] = nil
 
+    -- Open, but in another tabpage: build it here rather than leave a second
+    -- window showing the same panel over there.
+    if self:_any_win() then
+        local ok, err = self:_rebuild()
+        if not ok then return false, err end
+        if opts.enter then vim.api.nvim_set_current_win(self._win) end
+        return true
+    end
+
+    return self:_create_win(opts)
+end
+
+--- Build the panel window in the current tabpage, showing what was last on
+--- screen -- the active group's page when there is nothing to go back to.
+---@param opts? { enter?: boolean }
+---@return boolean ok, string? error  false when there is no room for the split
+function Panel:_create_win(opts)
+    opts = opts or {}
     highlight.setup()
 
     local axis, pos = config_mod.split_spec()
     -- fixedwin owns the split creation, the fixed-size pinning, layout-change
     -- recovery, and the close lifecycle; on_delete hands back the last-known
-    -- ratio (shared by every tab's panel, so a drag in one sizes the next) and
-    -- runs our teardown.
+    -- ratio (persisted across open/close) and runs our teardown.
     -- `win` is an upvalue of on_delete so the teardown knows which window it is
     -- reporting; it is assigned long before any close can fire.
     local win ---@type integer?
@@ -263,7 +268,7 @@ function Panel:open(opts)
     -- does not exist.
     if not win then return false, err end
 
-    self._wins[tab] = win
+    self._win = win
 
     uiutil.win_setlocal(win, "winfixbuf", true)
     uiutil.win_setlocal(win, "number", false)
@@ -284,10 +289,10 @@ function Panel:open(opts)
         self:_set_active(pick)
     end
 
-    -- A panel already open elsewhere is showing a page; join it rather than
-    -- re-deriving one, so every view stays on the same buffer.
+    -- A panel reopening goes back to the page it was showing, so a close and
+    -- re-open hands the view back as it was.
     if self._shown_buf and vim.api.nvim_buf_is_valid(self._shown_buf) then
-        self:_set_win_buf(self._shown_buf, win)
+        self:_set_win_buf(self._shown_buf)
     else
         self:_show_active()
     end
@@ -295,23 +300,14 @@ function Panel:open(opts)
     return true
 end
 
---- Hide the panel in the current tabpage; `{ all = true }` hides it everywhere.
---- Groups are untouched either way: a closed panel still has all its tabs.
----@param opts? { all?: boolean }
-function Panel:close(opts)
-    if opts and opts.all then
-        self._pending = {}
-        -- fixedwin's on_delete saves the ratio and calls _on_win_closed.
-        for _, win in pairs(self:wins()) do
-            pcall(vim.api.nvim_win_close, win, false)
-        end
-        return
-    end
-
-    local tab          = vim.api.nvim_get_current_tabpage()
-    self._pending[tab] = nil
-    local win          = self:win(tab)
-    if win then pcall(vim.api.nvim_win_close, win, false) end
+--- Hide the panel. There is one window for the whole editor, so this closes it
+--- wherever it is; an `all` from an older caller asks for exactly that and
+--- changes nothing. Groups are untouched either way: a closed panel still has
+--- all its tabs.
+function Panel:close()
+    local win = self:_any_win()
+    if not win then return end
+    pcall(vim.api.nvim_win_close, win, false)
 end
 
 ---@param opts? { enter?: boolean }
@@ -326,31 +322,21 @@ end
 
 ---@param win integer  the window that closed
 function Panel:_on_win_closed(win)
-    local closed_tab
-    for tab, w in pairs(self._wins) do
-        if w == win then
-            closed_tab      = tab
-            self._wins[tab] = nil
-        end
-    end
+    -- A window from an earlier life of the panel -- one a `_rebuild` replaced and
+    -- then closed -- is not the panel's window any more, and its close says
+    -- nothing about what the panel is showing.
+    if win ~= self._win then return end
+    self._win = nil
 
     -- Deleting a buffer closes every window showing it, and Neovim emits
     -- WinClosed *before* any BufUnload/BufWipeout autocmd, and there is no hook
     -- early enough to move the panel off the doomed buffer first. So record what
     -- was on screen and where; if that exact buffer unloads in this same tick,
     -- the close was collateral damage from the delete and _attach_buf reopens
-    -- the panel in every tab that lost it.
-    self._closing_buf  = self._shown_buf
-    self._closing_tabs = self._closing_tabs or {}
-    if closed_tab then self._closing_tabs[closed_tab] = true end
-    vim.schedule(function()
-        self._closing_buf  = nil
-        self._closing_tabs = nil
-    end)
-
-    if not self:is_open_anywhere() then
-        self._shown_buf = nil
-    end
+    -- the panel.
+    self._closing_buf = self._shown_buf
+    self._shown_buf   = nil
+    vim.schedule(function() self._closing_buf = nil end)
 end
 
 -- Buffer display
@@ -393,18 +379,17 @@ function Panel:_attach_buf(bufnr)
         once     = true,
         callback = function()
             self._attached[bufnr] = nil
-            local took_tabpages_down = self._closing_buf == bufnr
-                and vim.tbl_keys(self._closing_tabs or {}) or {}
+            local was_shown = self._closing_buf == bufnr
 
             for _, group in ipairs(vim.list_slice(self._groups)) do
                 group:remove_page(bufnr)
             end
 
-            -- Restore the panels Neovim closed out from under us (see
+            -- Restore the panel Neovim closed out from under us (see
             -- _on_win_closed), but only if there is still something to show:
             -- reopening an empty panel over a wiped last tab is just noise.
-            if #took_tabpages_down > 0 and #self._groups > 0 then
-                vim.schedule(function() self:_reopen_in(took_tabpages_down) end)
+            if was_shown and #self._groups > 0 and not self:_any_win() then
+                vim.schedule(function() self:open() end)
             end
         end,
     })
@@ -413,14 +398,12 @@ function Panel:_attach_buf(bufnr)
 end
 
 --- Whether `bufnr` gained lines with nobody watching. Not "is the panel showing
---- it": the panel is editor-wide, so it can be showing a buffer in a tabpage the
---- user is not in, and it can be closed entirely, neither of which leaves the
---- output on screen. What is on screen is a window of the *current* tabpage, and
---- the panel's own window there counts like any other.
+--- it": what is on screen is a window of the *current* tabpage, and the panel's
+--- own window there counts like any other.
 ---@param bufnr integer
 ---@return boolean
 function Panel:_is_unseen(bufnr)
-    -- fast path: the page this tabpage's own panel is showing
+    -- fast path: the page the panel window is showing
     if self._shown_buf == bufnr and self:is_open() then return false end
 
     for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
@@ -458,52 +441,29 @@ function Panel:_watch_buf(bufnr)
     })
 end
 
---- Re-show the panel in each of `tabs`. Only the current tabpage can be split
---- into directly; the rest wait for the user to enter them.
----@param tabs integer[]
-function Panel:_reopen_in(tabs)
-    local cur = vim.api.nvim_get_current_tabpage()
-    for _, tab in ipairs(tabs) do
-        if vim.api.nvim_tabpage_is_valid(tab) and not self:is_open(tab) then
-            if tab == cur then
-                self:open()
-            else
-                self._pending[tab] = true
-            end
-        end
-    end
-end
-
---- Put a buffer in the panel windows, every one of them by default, since all
---- tabs are views of the same panel.
+--- Put a buffer in the panel window.
 ---@param bufnr integer
----@param only? integer  restrict to this window
-function Panel:_set_win_buf(bufnr, only)
+function Panel:_set_win_buf(bufnr)
     if not vim.api.nvim_buf_is_valid(bufnr) then return end
+    local win = self:_any_win()
+    if not win then return end
 
-    local shown = false
-    for _, win in pairs(self:wins()) do
-        if not only or win == only then
-            uiutil.win_setlocal(win, "winfixbuf", false)
-            vim.api.nvim_win_set_buf(win, bufnr)
-            uiutil.win_setlocal(win, "winfixbuf", true)
-            if vim.bo[bufnr].buftype == "terminal" then
-                local last = vim.api.nvim_buf_line_count(bufnr)
-                pcall(vim.api.nvim_win_set_cursor, win, { last, 0 })
-            end
-            shown = true
-        end
+    uiutil.win_setlocal(win, "winfixbuf", false)
+    vim.api.nvim_win_set_buf(win, bufnr)
+    uiutil.win_setlocal(win, "winfixbuf", true)
+    if vim.bo[bufnr].buftype == "terminal" then
+        local last = vim.api.nvim_buf_line_count(bufnr)
+        pcall(vim.api.nvim_win_set_cursor, win, { last, 0 })
     end
-    if not shown then return end
 
     self._unread[bufnr] = nil
     self._shown_buf     = bufnr
 end
 
---- Put the active group's active page in the panel windows, falling back to the
+--- Put the active group's active page in the panel window, falling back to the
 --- group's best page and then to the placeholder buffer.
 function Panel:_show_active()
-    if not self:is_open_anywhere() then return end
+    if not self:_any_win() then return end
 
     local group = self._active
     local page  = group and group.pages[self._active_page] or nil
@@ -599,7 +559,7 @@ function Panel:_resolve_page(group, page, buf)
     return nil
 end
 
---- Show a group, opening the panel in this tabpage if it is closed.
+--- Show a group, opening the panel if it is closed.
 ---@param group neotasks.ui.Group
 ---@param opts? neotasks.ui.Group.ActivateOpts
 function Panel:activate(group, opts)
@@ -790,28 +750,24 @@ function Panel:_build_tabs()
 end
 
 function Panel:_refresh_winbar()
-    local wins = self:wins()
-    if next(wins) == nil then return end
+    local win = self:_any_win()
+    if not win then return end
 
     local tabs, targets = self:_build_tabs()
     self._targets       = targets
 
-    -- One tab bar, rendered per window: the content is shared, but the width to
-    -- crop it to is whatever that tabpage's panel happens to be.
-    for _, win in pairs(wins) do
-        local text = winbar.build(tabs, vim.api.nvim_win_get_width(win), {
-            separator  = config.panel.winbar.separator,
-            unread     = config.panel.winbar.unread,
-            numbers    = config.panel.winbar.numbers,
-            click      = _CLICK,
-            empty_text = config.panel.empty_text,
-        })
+    local text = winbar.build(tabs, vim.api.nvim_win_get_width(win), {
+        separator  = config.panel.winbar.separator,
+        unread     = config.panel.winbar.unread,
+        numbers    = config.panel.winbar.numbers,
+        click      = _CLICK,
+        empty_text = config.panel.empty_text,
+    })
 
-        -- 'winbar' is global-local: `vim.wo[win].winbar = …` would also write the
-        -- hidden global value, and every window without a local winbar would start
-        -- rendering the panel's. Keep it local.
-        uiutil.win_setlocal(win, "winbar", text)
-    end
+    -- 'winbar' is global-local: `vim.wo[win].winbar = …` would also write the
+    -- hidden global value, and every window without a local winbar would start
+    -- rendering the panel's. Keep it local.
+    uiutil.win_setlocal(win, "winbar", text)
 end
 
 -- Navigation
@@ -908,10 +864,10 @@ function M.open(opts)
     return ok
 end
 
---- Hide the panel in the current tabpage; `{ all = true }` hides it in every one.
----@param opts? { all?: boolean }
-function M.close(opts)
-    Panel.get():close(opts)
+--- Hide the panel. There is one window for the whole editor, so this closes it
+--- wherever it is.
+function M.close()
+    Panel.get():close()
 end
 
 ---@param opts? { enter?: boolean }

@@ -488,14 +488,15 @@ by `panel.size`.
   flagged unread.
 - A task's terminal outranks its log after the same run, so the log shows until
   there is real output.
-- The panel is shared by every Neovim tabpage - the same tabs, each tabpage
-  showing or hiding its own view of them.
+- The panel is one window for the whole editor, not one per Neovim tabpage. It
+  stays in the tabpage it was opened in rather than following you across them:
+  opening it again somewhere else - a new run, `:Neotasks panel` - brings it
+  over. Closing the tabpage holding it closes the panel.
 
 Disposal:
 
 - `:Neotasks panel` toggles the panel; `open`, `close`, `toggle` name it
-  explicitly, and `:Neotasks panel close!`-style `all` closing is not exposed
-  (close affects only the current tabpage).
+  explicitly.
 - `:Neotasks clean one` disposes a finished run, buffers included;
   `:Neotasks clean` disposes every finished run.
 - Disposal always goes through the runner: it owns the run, so it decides
