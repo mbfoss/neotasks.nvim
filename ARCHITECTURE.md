@@ -55,15 +55,17 @@ Public API, [lua/neotasks/init.lua](lua/neotasks/init.lua):
   driven by the resolved task schema. Declared for the `neotasks` filetype by
   `setup()` and started by Neovim itself; its `root_dir` guard keeps it to the
   real tasks file.
-- [ui/](lua/neotasks/ui/): task output.
-  [runview.lua](lua/neotasks/ui/runview.lua) is the only subscriber to the
-  runner's signals: it gives every run its own scratch log buffer and shows
-  that plus the run's task buffers as a tab in the built-in output panel (one
-  numbered, badged tab per run, one page per buffer), rendered by
-  [winbar.lua](lua/neotasks/ui/winbar.lua).
-  [panel.lua](lua/neotasks/ui/panel.lua) owns the window - a single one for the
-  whole editor, in the tabpage it was last opened in - and
-  [group.lua](lua/neotasks/ui/group.lua) is a single tab.
+- [runview.lua](lua/neotasks/runview.lua): the only subscriber to the runner's
+  signals. It gives every run its own scratch log buffer and shows that plus the
+  run's task buffers as a tab in the built-in output panel -- one numbered,
+  badged tab per run, one page per buffer.
+- [panel/](lua/neotasks/panel/): task output.
+  [init.lua](lua/neotasks/panel/init.lua) owns the window - a single one for the
+  whole editor, in the tabpage it was last opened in; the module is the panel
+  itself (require returns the one instance).
+  [group.lua](lua/neotasks/panel/group.lua) is a single tab, and
+  [winbar.lua](lua/neotasks/panel/winbar.lua) draws the bar and defines its
+  highlight groups.
 - [util/](lua/neotasks/util/): shared helpers (async, signals, terminal,
   windows, ...).
 

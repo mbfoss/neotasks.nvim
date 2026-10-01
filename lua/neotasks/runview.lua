@@ -3,7 +3,7 @@
 ---Every run gets its own scratch log buffer holding its timestamped progress
 ---report, plus whatever buffers its task type spawns (terminals, output), all
 ---shown in the built-in output panel (see
----[panel.lua](lua/neotasks/ui/panel.lua)): the run becomes a numbered tab with a
+---[init.lua](lua/neotasks/panel/init.lua)): the run becomes a numbered tab with a
 ---status badge, and its log and task buffers become the tab's pages. The panel
 ---owns the window, the tab bar and the numbering.
 ---
@@ -11,10 +11,10 @@
 ---the user command, so a run is captured whether or not the view is on screen.
 
 local exec   = require("neotasks.runner.exec")
-local panel  = require("neotasks.ui.panel")
+local panel  = require("neotasks.panel")
 local uiutil = require("neotasks.util.ui")
 
----@class neotasks.ui.runview
+---@class neotasks.runview
 local M      = {}
 
 ---Cap on a log buffer's line count; `_append` trims oldest lines past this.
@@ -22,18 +22,18 @@ local _MAX_LOG_LINES = 10000
 
 ---One run's view: its log buffer, its panel group, and the task buffers already
 ---registered for display.
----@class neotasks.ui.runview.View
+---@class neotasks.runview.View
 ---@field run_id  string
 ---@field log_buf integer
----@field group   neotasks.ui.Group
+---@field group   neotasks.panel.Group
 ---@field bufs    table<integer, true>  task buffers already shown
 
----@type table<string, neotasks.ui.runview.View>
+---@type table<string, neotasks.runview.View>
 local _views     = {}
 
 -- Badges are constant per state: the panel compares them by identity, so reusing
 -- the same table keeps a no-op `set_badge` from redrawing the tab bar.
----@type table<neotasks.TaskState, neotasks.ui.Badge>
+---@type table<neotasks.TaskState, neotasks.panel.Badge>
 local _BADGE     = {
     running = { icon = "▶", hl = "NeotasksBadgeHint" },
     waiting = { icon = "⧗", hl = "NeotasksBadgeHint" },
@@ -122,7 +122,7 @@ end
 
 ---@param run_id string
 ---@param entry  neotasks.RunEntry
----@return neotasks.ui.runview.View
+---@return neotasks.runview.View
 local function _ensure_view(run_id, entry)
     local view = _views[run_id]
     if view and vim.api.nvim_buf_is_valid(view.log_buf) then return view end
@@ -138,7 +138,7 @@ local function _ensure_view(run_id, entry)
     -- The run the user asked for takes the panel even while they work inside it
     -- (the panel's default focus lets a restart lose it); a dependency never
     -- takes it, so a failure leaves them on the task they ran.
-    local group = panel.get():group({
+    local group = panel:group({
         id    = run_id,
         label = entry.task_name,
         badge = _BADGE[entry.state] or _BADGE.idle,
@@ -214,12 +214,12 @@ end
 
 ---Show the panel without taking the cursor.
 function M.open()
-    panel.open()
+    panel:open()
 end
 
 ---Toggle the panel, focusing it when it opens.
 function M.toggle()
-    panel.toggle({ enter = true })
+    panel:toggle({ enter = true })
 end
 
 return M

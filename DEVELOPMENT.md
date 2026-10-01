@@ -15,7 +15,8 @@ lua/neotasks/            plugin source
   types/                  task-type registry + built-ins + schema merge
   expressions.lua              ${name} value substitutions
   lsp/                    in-process language server for the tasks file
-  ui/                     task output panel (panel, group, winbar)
+  runview.lua             run -> panel bridge (runner signal subscriber)
+  panel/                  task output panel (window, tabs, winbar)
   util/                   shared helpers
   tomltools/              VENDORED TOML engine (git subtree, see below)
 tests/                    busted specs

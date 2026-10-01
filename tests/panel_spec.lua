@@ -21,7 +21,7 @@
 -- another one brings it over. Those specs live in the nested `describe` at the
 -- end.
 
-local panel = require("neotasks.ui.panel")
+local panel = require("neotasks.panel")
 
 -- The tail every bar the panel draws carries (see `winbar.build`).
 local MARK = "%0@v:lua._neotasks_panel_click@%X"
@@ -71,12 +71,12 @@ describe("panel", function()
     end
 
     before_each(function()
-        p    = panel.get()
+        p    = panel
         bufs = {}
     end)
 
     after_each(function()
-        p:close({ all = true })
+        p:close()
         for _, g in ipairs(p:groups()) do g:remove() end
         for _, buf in ipairs(bufs) do pcall(vim.api.nvim_buf_delete, buf, { force = true }) end
         vim.cmd("silent! tabonly")

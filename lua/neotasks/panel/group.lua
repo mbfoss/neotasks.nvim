@@ -1,6 +1,6 @@
 ---@brief One run's tab in the output panel.
 
----@class neotasks.ui.Badge
+---@class neotasks.panel.Badge
 ---@field icon  string    single-cell glyph shown before the tab label
 ---@field hl    string    highlight group for the glyph
 
@@ -9,28 +9,28 @@
 --- mutator notifies the panel so the winbar and the displayed buffer stay in
 --- sync. A group outlives the panel window: closing the panel does not discard
 --- it, and re-opening restores every tab.
----@class neotasks.ui.Group
+---@class neotasks.panel.Group
 ---@field id                string
 ---@field label             string
----@field pages             neotasks.ui.Group.Page[]
+---@field pages             neotasks.panel.Group.Page[]
 ---@field focus             "auto"|"never"|"always"
----@field badge             neotasks.ui.Badge?   glyph drawn before the tab label; none when nil
+---@field badge             neotasks.panel.Badge?   glyph drawn before the tab label; none when nil
 ---@field busy              boolean               the group is still working
 ---@field remove_when_empty boolean               drop the tab once its last page goes away
----@field _panel            neotasks.ui.panel
+---@field _panel            neotasks.panel.Panel
 ---@field _removed          boolean
 local Group = {}
 Group.__index = Group
 
----@class neotasks.ui.Group.Page
+---@class neotasks.panel.Group.Page
 ---@field buf      integer
 ---@field label    string
 ---@field priority integer  highest-priority page wins when the panel auto-advances
 
----@class neotasks.ui.GroupSpec
+---@class neotasks.panel.GroupSpec
 ---@field id?                string                  stable id for panel:group(); defaults to a generated one
 ---@field label?             string                  tab text; defaults to the id
----@field badge?             neotasks.ui.Badge       glyph drawn before the tab label
+---@field badge?             neotasks.panel.Badge       glyph drawn before the tab label
 ---@field busy?              boolean                 the group is still working; default false
 ---@field focus?             "auto"|"never"|"always" how eagerly the tab takes over the panel; default "auto"
 ---@field remove_when_empty? boolean
@@ -44,9 +44,9 @@ local function assert_label(what, value)
     assert(type(value) == "string", ("neotasks: %s must be a string"):format(what))
 end
 
----@param panel neotasks.ui.panel
----@param spec  neotasks.ui.GroupSpec
----@return neotasks.ui.Group
+---@param panel neotasks.panel.Panel
+---@param spec  neotasks.panel.GroupSpec
+---@return neotasks.panel.Group
 function Group.new(panel, spec)
     if spec.label ~= nil then assert_label("group label", spec.label) end
     return setmetatable({
@@ -70,7 +70,7 @@ function Group:is_busy()
 end
 
 ---@param busy boolean
----@return neotasks.ui.Group self
+---@return neotasks.panel.Group self
 function Group:set_busy(busy)
     busy = busy and true or false
     if self.busy ~= busy then
@@ -85,7 +85,7 @@ function Group:is_removed()
     return self._removed
 end
 
----@class neotasks.ui.Group.PageSpec
+---@class neotasks.panel.Group.PageSpec
 ---@field buf       integer
 ---@field label?    string   defaults to the buffer's basename, else "buf N"
 ---@field priority? integer  default 0
@@ -96,8 +96,8 @@ end
 --- The panel advances to it only when it outranks whatever is on screen, so a
 --- low-priority log buffer can be added without yanking the user off the output
 --- they are reading. Pass `activate = true` to insist.
----@param spec neotasks.ui.Group.PageSpec
----@return neotasks.ui.Group.Page?
+---@param spec neotasks.panel.Group.PageSpec
+---@return neotasks.panel.Group.Page?
 function Group:page(spec)
     if self._removed then return nil end
     assert(type(spec.buf) == "number", "neotasks: page requires a buffer number")
@@ -117,7 +117,7 @@ function Group:page(spec)
     end
 
     local name = vim.api.nvim_buf_get_name(spec.buf)
-    ---@type neotasks.ui.Group.Page
+    ---@type neotasks.panel.Group.Page
     local page = {
         buf      = spec.buf,
         label    = spec.label
@@ -132,7 +132,7 @@ end
 
 --- Remove a page. Never touches the buffer itself: buffers are owned by the
 --- source that created them.
----@param page neotasks.ui.Group.Page|integer  a page, or the buffer number of one
+---@param page neotasks.panel.Group.Page|integer  a page, or the buffer number of one
 ---@return boolean removed
 function Group:remove_page(page)
     local buf = type(page) == "number" and page or page.buf
@@ -147,7 +147,7 @@ function Group:remove_page(page)
 end
 
 ---@param label string
----@return neotasks.ui.Group self
+---@return neotasks.panel.Group self
 function Group:set_label(label)
     assert_label("group label", label)
     if self.label ~= label then
@@ -157,8 +157,8 @@ function Group:set_label(label)
     return self
 end
 
----@param badge neotasks.ui.Badge?  nil draws the tab without a glyph
----@return neotasks.ui.Group self
+---@param badge neotasks.panel.Badge?  nil draws the tab without a glyph
+---@return neotasks.panel.Group self
 function Group:set_badge(badge)
     if self.badge ~= badge then
         self.badge = badge
@@ -167,14 +167,14 @@ function Group:set_badge(badge)
     return self
 end
 
----@class neotasks.ui.Group.ActivateOpts
----@field page?  neotasks.ui.Group.Page|integer  a page, or its 1-based index; defaults to the group's best page
+---@class neotasks.panel.Group.ActivateOpts
+---@field page?  neotasks.panel.Group.Page|integer  a page, or its 1-based index; defaults to the group's best page
 ---@field buf?   integer                  select the page showing this buffer; takes precedence over `page`
 ---@field enter? boolean                  move the cursor into the panel window
 
 --- Put this group on screen, opening the panel if needed.
----@param opts? neotasks.ui.Group.ActivateOpts
----@return neotasks.ui.Group self
+---@param opts? neotasks.panel.Group.ActivateOpts
+---@return neotasks.panel.Group self
 function Group:activate(opts)
     if not self._removed then
         self._panel:activate(self, opts)

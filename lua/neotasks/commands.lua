@@ -1,7 +1,7 @@
 local config       = require("neotasks.config").current
 local runner       = require("neotasks.runner")
 local task_types   = require("neotasks.types")
-local runview      = require("neotasks.ui.runview")
+local runview      = require("neotasks.runview")
 local notify       = require("neotasks.notify")
 local select       = require("neotasks.util.select").select
 local toml         = require("neotasks.tomltools")
@@ -189,24 +189,24 @@ end
 ---and the rest mirror the panel's own window/navigation API.
 ---@param args string[]
 local function _panel_command(args)
-    local panel = require("neotasks.ui.panel")
+    local panel = require("neotasks.panel")
     local sub   = args[1]
 
     if sub == nil or sub == "" or sub == "toggle" then
         runview.toggle()
     elseif sub == "open" then
-        panel.open({ enter = true })
+        panel:open({ enter = true })
     elseif sub == "close" then
-        panel.close()
+        panel:close()
     elseif sub == "next" then
-        panel.cycle(1, { enter = true })
+        panel:cycle(1, { enter = true })
     elseif sub == "prev" then
-        panel.cycle(-1, { enter = true })
+        panel:cycle(-1, { enter = true })
     elseif sub == "jump" then
         local n = tonumber(args[2])
         if not n then
             notify.warn("jump needs a tab number")
-        elseif not panel.jump(n, { enter = true }) then
+        elseif not panel:jump(n, { enter = true }) then
             notify.warn("no tab " .. n)
         end
     else

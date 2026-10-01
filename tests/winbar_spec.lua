@@ -1,11 +1,11 @@
 ---@diagnostic disable: undefined-global, undefined-field, need-check-nil
--- Unit tests for the output panel's winbar renderer (lua/neotasks/ui/winbar.lua).
+-- Unit tests for the output panel's winbar renderer (lua/neotasks/panel/winbar.lua).
 -- build() is pure Lua over a tab list and a width -- the panel supplies the
 -- numbers/active/page state -- so it can be exercised without a window. The
 -- returned string carries `%#hl#` and `%N@fn@` escapes, so the assertions match
 -- visible fragments rather than whole strings.
 
-local winbar = require("neotasks.ui.winbar")
+local winbar = require("neotasks.panel.winbar")
 
 --- The options the panel passes to build().
 ---@param over? table

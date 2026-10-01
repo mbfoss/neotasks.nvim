@@ -18,25 +18,23 @@
 local config_mod = require("neotasks.config")
 local config     = config_mod.current
 local fixedwin   = require("neotasks.util.fixedwin")
-local highlight  = require("neotasks.ui.highlight")
 local throttle   = require("neotasks.util.throttle")
 local uiutil     = require("neotasks.util.ui")
-local winbar     = require("neotasks.ui.winbar")
-local Group      = require("neotasks.ui.group")
+local winbar     = require("neotasks.panel.winbar")
+local Group      = require("neotasks.panel.group")
 
----@class neotasks.ui.panel
+---@class neotasks.panel.Panel
 ---@field _win         integer?                   the panel window, in whichever tabpage that is
 ---@field _augroup     integer?                   panel-wide autocmds, created with the instance
----@field _groups      neotasks.ui.Group[]
----@field _by_id       table<string, neotasks.ui.Group>
+---@field _groups      neotasks.panel.Group[]
+---@field _by_id       table<string, neotasks.panel.Group>
 ---@field _seq         integer                    id counter for groups created without an id
----@field _active      neotasks.ui.Group?
+---@field _active      neotasks.panel.Group?
 ---@field _active_page integer                    index into _active.pages; 0 when the group has none
 ---@field _shown_buf   integer?                   buffer currently in the panel window
 ---@field _closing_buf integer?                   buffer on screen when the window last closed, for one tick
 ---@field _ratio       number?                    last-known size ratio, persisted across open/close
----@field _targets     neotasks.ui.panel.Target[] jump number -> what it selects; rebuilt on every render
----@field _follow      neotasks.ui.Group?         group allowed to take over even while the panel is focused
+---@field _follow      neotasks.panel.Group?      group allowed to take over even while the panel is focused
 ---@field _attached    table<integer, true>       buffers nvim_buf_attach has been called on
 ---@field _unread      table<integer, true>       buffers that gained lines while not on screen
 ---@field _placeholder integer?
@@ -46,24 +44,20 @@ local Group      = require("neotasks.ui.group")
 local Panel        = {}
 Panel.__index      = Panel
 
----@class neotasks.ui.panel.Target
----@field group neotasks.ui.Group
+---@class neotasks.panel.Panel.Target
+---@field group neotasks.panel.Group
 ---@field page  integer  1-based page index, or 0 meaning "the group's best page"
 
-local _instance = nil ---@type neotasks.ui.panel?
-
---- The panel. Not to be built twice: `_setup_autocmds` claims the `NeotasksPanel`
---- augroup with `clear`, so a second instance would quietly take over the first
---- one's autocmds while both stayed in use. `Panel.get()` is the way in.
----@return neotasks.ui.panel
-function Panel.new()
-    assert(not _instance, "neotasks: Panel is a singleton; use Panel.get()")
+--- Build the panel. Called once, at the bottom of this file: `require` caches
+--- the module, so the returned instance is the singleton and there is no second
+--- constructor to guard against.
+---@return neotasks.panel.Panel
+local function new()
     local self = setmetatable({
         _groups      = {},
         _by_id       = {},
         _seq         = 0,
         _active_page = 0,
-        _targets     = {},
         _attached    = {},
         _unread      = {},
     }, Panel)
@@ -72,13 +66,6 @@ function Panel.new()
     end)
     self:_setup_autocmds()
     return self
-end
-
---- The shared panel every run draws into, and every tabpage shows.
----@return neotasks.ui.panel
-function Panel.get()
-    if not _instance then _instance = Panel.new() end
-    return _instance
 end
 
 -- Window lifecycle
@@ -90,12 +77,31 @@ local _RESET_OPTS = "setlocal winbar< winfixheight< winfixwidth< winfixbuf< "
 -- The handler every tab in the bar is wired to (`%N@fn@` needs the name of one).
 local _CLICK = "v:lua._neotasks_panel_click"
 
--- What every bar the panel draws ends with (see winbar.build): a zero-width
--- click region on that handler, which is how a bar says it is the panel's. The
--- guard below recognises one by it, so it is here rather than loose in the
--- check -- whatever else a bar holds, this is the part that cannot be cropped
--- away or left out.
-local _BAR_MARK = string.format("%%0@%s@%%X", _CLICK)
+-- What every bar the panel draws ends with (see winbar.mark): a zero-width click
+-- region on that handler, which is how a bar says it is the panel's. The guard
+-- below recognises one by it, so it is here rather than loose in the check --
+-- whatever else a bar holds, this is the part that cannot be cropped away or
+-- left out.
+local _BAR_MARK = winbar.mark(_CLICK)
+
+-- Window-local options the panel sets once its window exists. `_RESET_OPTS`
+-- above undoes these -- along with winbar/winfixheight/winfixwidth, which
+-- fixedwin sets -- on a window that merely inherited the bar.
+local _WIN_OPTS = {
+    winfixbuf      = true,
+    number         = false,
+    relativenumber = false,
+    signcolumn     = "no",
+    spell          = false,
+    wrap           = false,
+}
+
+---@param win integer
+local function _apply_win_opts(win)
+    for name, value in pairs(_WIN_OPTS) do
+        uiutil.win_setlocal(win, name, value)
+    end
+end
 
 --- The panel window, wherever it is, dropping it from the record when Neovim has
 --- closed it.
@@ -175,7 +181,7 @@ function Panel:_setup_autocmds()
         group    = group,
         callback = function()
             if self:_any_win() then
-                highlight.setup()
+                winbar.setup_highlights()
                 self:_refresh_winbar()
             end
         end,
@@ -207,13 +213,26 @@ function Panel:_rebuild()
     return true
 end
 
+--- Show the panel here, warning when the editor has no room for the split.
+---@param opts? { enter?: boolean }
+---@return boolean ok  false when there is no room for the split
+function Panel:open(opts)
+    local ok, err = self:_open(opts)
+    if not ok then
+        require("neotasks.notify").warn("cannot open panel: " .. (err or "not enough room"))
+    end
+    return ok
+end
+
 --- Show the panel here: build its window, or replace the one it has left behind
 --- in another tabpage (see `_rebuild`) with one here. Asking for the panel is the
 --- only thing that brings it over, so a run starting in another tabpage, or a
---- `:Neotasks panel` command, each comes down to this.
+--- `:Neotasks panel` command, each comes down to this. The shared path for the
+--- public `open` and for callers that open the panel as a side effect (a run
+--- starting, a buffer being restored) rather than because the user asked.
 ---@param opts? { enter?: boolean }
 ---@return boolean ok, string? error  false when there is no room for the split
-function Panel:open(opts)
+function Panel:_open(opts)
     opts = opts or {}
     local existing = self:win()
     if existing then
@@ -239,7 +258,7 @@ end
 ---@return boolean ok, string? error  false when there is no room for the split
 function Panel:_create_win(opts)
     opts = opts or {}
-    highlight.setup()
+    winbar.setup_highlights()
 
     local axis, pos = config_mod.split_spec()
     -- fixedwin owns the split creation, the fixed-size pinning, layout-change
@@ -269,13 +288,7 @@ function Panel:_create_win(opts)
     if not win then return false, err end
 
     self._win = win
-
-    uiutil.win_setlocal(win, "winfixbuf", true)
-    uiutil.win_setlocal(win, "number", false)
-    uiutil.win_setlocal(win, "relativenumber", false)
-    uiutil.win_setlocal(win, "signcolumn", "no")
-    uiutil.win_setlocal(win, "spell", false)
-    uiutil.win_setlocal(win, "wrap", false)
+    _apply_win_opts(win)
 
     if not self._active or self._active:is_removed() then
         -- prefer the oldest still-working group, else the newest tab
@@ -301,9 +314,7 @@ function Panel:_create_win(opts)
 end
 
 --- Hide the panel. There is one window for the whole editor, so this closes it
---- wherever it is; an `all` from an older caller asks for exactly that and
---- changes nothing. Groups are untouched either way: a closed panel still has
---- all its tabs.
+--- wherever it is. Groups are untouched: a closed panel still has all its tabs.
 function Panel:close()
     local win = self:_any_win()
     if not win then return end
@@ -311,7 +322,7 @@ function Panel:close()
 end
 
 ---@param opts? { enter?: boolean }
----@return boolean ok, string? error
+---@return boolean ok  false when opening was asked for and there was no room
 function Panel:toggle(opts)
     if self:is_open() then
         self:close()
@@ -389,7 +400,7 @@ function Panel:_attach_buf(bufnr)
             -- _on_win_closed), but only if there is still something to show:
             -- reopening an empty panel over a wiped last tab is just noise.
             if was_shown and #self._groups > 0 and not self:_any_win() then
-                vim.schedule(function() self:open() end)
+                vim.schedule(function() self:_open() end)
             end
         end,
     })
@@ -483,7 +494,7 @@ end
 -- Active group / page selection
 
 --- Index of the group's highest-priority page, or 0 when it has none.
----@param group neotasks.ui.Group
+---@param group neotasks.panel.Group
 ---@return integer
 function Panel:_best_page(group)
     local best_idx, best_pri = 0, nil
@@ -495,7 +506,7 @@ function Panel:_best_page(group)
     return best_idx
 end
 
----@param group neotasks.ui.Group?
+---@param group neotasks.panel.Group?
 ---@param page_idx? integer
 function Panel:_set_active(group, page_idx)
     -- Selecting anything but the followed group ends the follow.
@@ -520,13 +531,13 @@ end
 
 --- Whether background activity in `group` may change what is displayed: yes
 --- unless the user is working inside the panel, and always for a followed group.
----@param group neotasks.ui.Group
+---@param group neotasks.panel.Group
 ---@return boolean
 function Panel:_may_follow(group)
     return self._follow == group or not self:_is_focused()
 end
 
----@param group neotasks.ui.Group
+---@param group neotasks.panel.Group
 ---@return boolean
 function Panel:_should_takeover(group)
     -- "never" means never *steals*: with nothing on screen there is nothing to
@@ -537,8 +548,8 @@ function Panel:_should_takeover(group)
     return not self:_is_focused()
 end
 
----@param group neotasks.ui.Group
----@param page? neotasks.ui.Group.Page|integer
+---@param group neotasks.panel.Group
+---@param page? neotasks.panel.Group.Page|integer
 ---@param buf?  integer
 ---@return integer? page index
 function Panel:_resolve_page(group, page, buf)
@@ -560,11 +571,11 @@ function Panel:_resolve_page(group, page, buf)
 end
 
 --- Show a group, opening the panel if it is closed.
----@param group neotasks.ui.Group
----@param opts? neotasks.ui.Group.ActivateOpts
+---@param group neotasks.panel.Group
+---@param opts? neotasks.panel.Group.ActivateOpts
 function Panel:activate(group, opts)
     opts = opts or {}
-    self:open()
+    self:_open()
     self:_set_active(group, self:_resolve_page(group, opts.page, opts.buf))
     self:_show_active()
     self:_refresh_winbar()
@@ -574,28 +585,28 @@ end
 
 -- Group notifications
 
----@param group neotasks.ui.Group
+---@param group neotasks.panel.Group
 function Panel:_group_added(group)
     self._groups[#self._groups + 1] = group
 
+    -- A group that takes over is made active before the panel opens, so that the
+    -- group `_create_win` would otherwise pick on its own (the oldest working
+    -- tab) cannot disagree with the takeover decision.
     local takeover = self:_should_takeover(group)
-
-    if not self:is_open() then
-        -- open() picks an active group itself when there is none; setting ours
-        -- first keeps that choice consistent with the takeover decision.
-        if takeover then self:_set_active(group) end
-        self:open()
-    end
-
     if takeover then
         self:_set_active(group)
         if group.focus == "always" then self._follow = group end
+    end
+
+    if not self:is_open() then
+        self:_open()
+    elseif takeover then
         self:_show_active()
     end
     self:_refresh_winbar()
 end
 
----@param group neotasks.ui.Group
+---@param group neotasks.panel.Group
 function Panel:_group_changed(group)
     -- A followed group stops overriding the focus guard once it finishes, so its
     -- final update does not disturb someone working in the panel.
@@ -605,7 +616,7 @@ function Panel:_group_changed(group)
     self:_refresh_winbar()
 end
 
----@param group neotasks.ui.Group
+---@param group neotasks.panel.Group
 function Panel:_group_removed(group)
     local idx
     for i, g in ipairs(self._groups) do
@@ -634,8 +645,8 @@ function Panel:_group_removed(group)
     self:_refresh_winbar()
 end
 
----@param group neotasks.ui.Group
----@param page  neotasks.ui.Group.Page
+---@param group neotasks.panel.Group
+---@param page  neotasks.panel.Group.Page
 ---@param force boolean  caller insists this page goes on screen
 function Panel:_page_added(group, page, force)
     self:_attach_buf(page.buf)
@@ -651,8 +662,8 @@ function Panel:_page_added(group, page, force)
     self:_refresh_winbar()
 end
 
----@param group neotasks.ui.Group
----@param page  neotasks.ui.Group.Page
+---@param group neotasks.panel.Group
+---@param page  neotasks.panel.Group.Page
 function Panel:_page_removed(group, page)
     self._unread[page.buf] = nil
 
@@ -676,8 +687,8 @@ end
 ---
 --- Reusing an existing `id` returns that group instead of creating a second one,
 --- so a caller can call this idempotently for a long-lived tab.
----@param spec? neotasks.ui.GroupSpec
----@return neotasks.ui.Group
+---@param spec? neotasks.panel.GroupSpec
+---@return neotasks.panel.Group
 function Panel:group(spec)
     spec = spec or {}
     if spec.id and self._by_id[spec.id] then
@@ -699,7 +710,7 @@ end
 
 -- Rendering
 
----@return neotasks.ui.winbar.Tab[], neotasks.ui.panel.Target[]
+---@return neotasks.panel.winbar.Tab[], neotasks.panel.Panel.Target[]
 function Panel:_build_tabs()
     local tabs, targets = {}, {}
 
@@ -711,7 +722,7 @@ function Panel:_build_tabs()
             if self._unread[page.buf] then unread = true end
         end
 
-        ---@type neotasks.ui.winbar.Tab
+        ---@type neotasks.panel.winbar.Tab
         local tab = {
             label   = group.label,
             icon    = badge and badge.icon,
@@ -753,8 +764,7 @@ function Panel:_refresh_winbar()
     local win = self:_any_win()
     if not win then return end
 
-    local tabs, targets = self:_build_tabs()
-    self._targets       = targets
+    local tabs = self:_build_tabs()
 
     local text = winbar.build(tabs, vim.api.nvim_win_get_width(win), {
         group_separator = config.panel.winbar.group_separator,
@@ -780,9 +790,8 @@ end
 ---@param opts? { enter?: boolean }
 ---@return boolean ok
 function Panel:jump(n, opts)
-    self:open()
+    self:_open()
     local _, targets = self:_build_tabs()
-    self._targets    = targets
 
     local target = targets[n]
     if not target then return false end
@@ -799,9 +808,8 @@ end
 ---@param delta integer
 ---@param opts? { enter?: boolean }
 function Panel:cycle(delta, opts)
-    self:open()
+    self:_open()
     local _, targets = self:_build_tabs()
-    self._targets    = targets
     if #targets == 0 then return end
 
     local cur = 1
@@ -819,81 +827,36 @@ end
 -- Queries
 
 --- Every registered group, oldest first.
----@return neotasks.ui.Group[]
+---@return neotasks.panel.Group[]
 function Panel:groups()
     return vim.list_slice(self._groups)
 end
 
----@return neotasks.ui.Group?
+---@return neotasks.panel.Group?
 function Panel:active()
     return self._active
 end
 
 --- The group a winbar number selects, for commands that act on one tab.
 ---@param n integer
----@return neotasks.ui.Group?
+---@return neotasks.panel.Group?
 function Panel:group_at(n)
     local _, targets = self:_build_tabs()
     local target     = targets[n]
     return target and target.group or nil
 end
 
+--- The one panel. `require` caches this module, so the instance built here is
+--- the singleton -- there is no second constructor and no accessor to hand it
+--- out; callers `require("neotasks.panel")` and use it directly.
+---@type neotasks.panel.Panel
+local M = new()
+
 -- Winbar click handler. The `%N@fn@` syntax needs a global, and there is exactly
 -- one panel, so a single global is enough.
 ---@param num integer
 function _G._neotasks_panel_click(num)
-    Panel.get():jump(num)
-end
-
--- Public facade: the handful of entry points callers outside this module use.
-
-local M = {}
-
----@return neotasks.ui.panel
-function M.get()
-    return Panel.get()
-end
-
---- Show the panel in the current tabpage.
----@param opts? { enter?: boolean }
----@return boolean ok  false when the editor has no room for the split
-function M.open(opts)
-    local ok, err = Panel.get():open(opts)
-    if not ok then
-        require("neotasks.notify").warn("cannot open panel: " .. (err or "not enough room"))
-    end
-    return ok
-end
-
---- Hide the panel. There is one window for the whole editor, so this closes it
---- wherever it is.
-function M.close()
-    Panel.get():close()
-end
-
----@param opts? { enter?: boolean }
----@return boolean ok  false when opening was asked for and there was no room
-function M.toggle(opts)
-    local ok, err = Panel.get():toggle(opts)
-    if not ok then
-        require("neotasks.notify").warn("cannot open panel: " .. (err or "not enough room"))
-    end
-    return ok
-end
-
---- Select the nth tab (see `Panel:jump`).
----@param n     integer
----@param opts? { enter?: boolean }
----@return boolean ok
-function M.jump(n, opts)
-    return Panel.get():jump(n, opts)
-end
-
---- Step through the flat tab numbering, wrapping at both ends.
----@param delta integer
----@param opts? { enter?: boolean }
-function M.cycle(delta, opts)
-    Panel.get():cycle(delta, opts)
+    M:jump(num)
 end
 
 return M

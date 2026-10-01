@@ -1,9 +1,9 @@
----@brief Builds the output panel's winbar: a flat, numbered list of tabs that
----fits a given width.
+---@brief The output panel's winbar: the flat, numbered list of tabs that fits a
+---given width, and the highlight groups those tabs are drawn in.
 ---
 ---The bar is assembled as a list of items so overflow can be measured before the
 ---string is produced.
----@class neotasks.ui.winbar
+---@class neotasks.panel.winbar
 local M = {}
 
 -- Each item is `{ kind, text, tab }`:
@@ -18,13 +18,13 @@ local _CROP, _FIXED, _ZERO = 1, 2, 3
 --- Shortest a cropped label may become before the cropper gives up on it.
 local _MIN_LABEL = 2
 
----@class neotasks.ui.winbar.Page
+---@class neotasks.panel.winbar.Page
 ---@field num     integer  global jump number
 ---@field label   string
 ---@field current boolean  currently displayed in the panel
 ---@field unread  boolean  gained lines while not visible
 
----@class neotasks.ui.winbar.Tab
+---@class neotasks.panel.winbar.Tab
 ---@field num     integer? global jump number for the group's own tab; nil once it
 ---                       draws page tabs, which carry the numbers instead
 ---@field label   string
@@ -32,9 +32,9 @@ local _MIN_LABEL = 2
 ---@field icon_hl string?  highlight for `icon`
 ---@field active  boolean  this group owns the displayed buffer
 ---@field unread  boolean  unseen output somewhere in the group; only set when it draws no page tabs
----@field pages   neotasks.ui.winbar.Page[]  page tabs; empty when the group has a single page
+---@field pages   neotasks.panel.winbar.Page[]  page tabs; empty when the group has a single page
 
----@class neotasks.ui.winbar.Opts
+---@class neotasks.panel.winbar.Opts
 ---@field group_separator string  between adjacent group tabs
 ---@field page_separator  string  between adjacent page tabs
 ---@field unread          string  marker for a page tab with unseen output
@@ -151,22 +151,32 @@ local function _flatten(items, width, nums)
     return table.concat(out)
 end
 
+--- The zero-width click region every bar the panel draws ends with: its
+--- signature, which is how `init.lua`'s guard tells a bar of its own from one a
+--- window was merely handed. It draws nothing and encloses no text, so it is not
+--- a target to click -- the empty bar needs it most, being the one bar that
+--- would otherwise carry no click region at all, and so the one bar the guard
+--- could not tell.
+---@param click string  vimscript function ref for the panel's click handler
+---@return string
+function M.mark(click)
+    return string.format("%%0@%s@%%X", click)
+end
+
 --- Render the winbar for a set of group tabs, cropping labels to fit `width`.
 ---
---- Every bar returned ends with the panel's signature, so that the panel can
---- recognise a bar of its own wherever it turns up.
----@param tabs  neotasks.ui.winbar.Tab[]
+--- Every bar returned ends with the panel's signature (see `mark`), so that the
+--- panel can recognise a bar of its own wherever it turns up.
+---@param tabs  neotasks.panel.winbar.Tab[]
 ---@param width integer
----@param opts  neotasks.ui.winbar.Opts
+---@param opts  neotasks.panel.winbar.Opts
 ---@return string
 function M.build(tabs, width, opts)
     -- Every bar ends with a zero-width click region on the panel's own handler.
     -- It draws nothing and encloses no text, so it is not a target to click: it
-    -- is the panel's signature, and panel.lua's guard looks for exactly this
-    -- string to tell its own bar from one a window was merely handed. The empty
-    -- bar needs it most, being the one bar that would otherwise carry no click
-    -- region at all, and so the one bar the guard could not tell.
-    local mark = string.format("%%0@%s@%%X", opts.click)
+    -- is the panel's signature, and init.lua's guard looks for exactly this
+    -- string to tell its own bar from one a window was merely handed.
+    local mark = M.mark(opts.click)
 
     if #tabs == 0 then
         return "%#WinBar# %#NeotasksBadgeMuted#" .. opts.empty_text .. "%#WinBar#" .. mark
@@ -255,6 +265,61 @@ function M.build(tabs, width, opts)
     end
 
     return _flatten(items, width, nums) .. mark
+end
+
+-- Highlight groups
+--
+-- `NeotasksActiveTab` is derived (not linked) so it follows the colorscheme;
+-- the rest link to built-in groups. Every group is defined `default = true`, so
+-- a colorscheme or an explicit `:highlight` always wins.
+
+---@param name string
+---@param attr "fg"|"bg"
+---@return integer?
+local function _get(name, attr)
+    local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = name, link = false })
+    return ok and hl[attr] or nil
+end
+
+--- The NeotasksActiveTab attrs this module last derived.
+local _derived ---@type table?
+
+--- Whether NeotasksActiveTab still holds exactly what this module gave it. Its
+--- colours are derived rather than linked, so a new theme has to be able to
+--- replace them -- but not to replace a definition the user made.
+---@param attrs table
+---@return boolean
+local function _is_ours(attrs)
+    local cur = vim.api.nvim_get_hl(0, { name = "NeotasksActiveTab", link = false })
+    for k, v in pairs(attrs) do
+        if cur[k] ~= v then return false end
+    end
+    return true
+end
+
+--- Define the bar's highlight groups. Safe to call repeatedly; re-run on
+--- ColorScheme so the derived (non-linked) group follows the new theme.
+function M.setup_highlights()
+    local active = {
+        fg   = _get("Title", "fg"),
+        bg   = _get("WinBar", "bg"),
+        bold = true,
+    }
+
+    -- After the first call the group exists because we made it, and `default`
+    -- defers to whatever is already there: derived colours would then be stuck on
+    -- the theme that was set when the panel first opened. Defer only to a
+    -- definition that is not ours.
+    vim.api.nvim_set_hl(0, "NeotasksActiveTab", vim.tbl_extend("force", active, {
+        default = not (_derived and _is_ours(_derived)),
+    }))
+    _derived = active
+    vim.api.nvim_set_hl(0, "NeotasksBadgeOk", { link = "DiagnosticOk", default = true })
+    vim.api.nvim_set_hl(0, "NeotasksBadgeErr", { link = "DiagnosticError", default = true })
+    vim.api.nvim_set_hl(0, "NeotasksBadgeWarn", { link = "DiagnosticWarn", default = true })
+    vim.api.nvim_set_hl(0, "NeotasksBadgeHint", { link = "DiagnosticHint", default = true })
+    vim.api.nvim_set_hl(0, "NeotasksBadgeMuted", { link = "WinBar", default = true })
+    vim.api.nvim_set_hl(0, "NeotasksUnread", { link = "DiagnosticHint", default = true })
 end
 
 return M
