@@ -88,6 +88,16 @@ end
 local _RESET_OPTS = "setlocal winbar< winfixheight< winfixwidth< winfixbuf< "
     .. "number< relativenumber< signcolumn< spell< wrap<"
 
+-- The handler every tab in the bar is wired to (`%N@fn@` needs the name of one).
+local _CLICK = "v:lua._neotasks_panel_click"
+
+-- What every bar the panel draws ends with (see winbar.build): a zero-width
+-- click region on that handler, which is how a bar says it is the panel's. The
+-- guard below recognises one by it, so it is here rather than loose in the
+-- check -- whatever else a bar holds, this is the part that cannot be cropped
+-- away or left out.
+local _BAR_MARK = string.format("%%0@%s@%%X", _CLICK)
+
 --- Every live panel window, keyed by tabpage. Stale entries (window closed with
 --- its tabpage, say) are dropped on the way past.
 ---@return table<integer, integer>  tabpage handle -> window id
@@ -174,19 +184,26 @@ function Panel:_setup_autocmds()
         end,
     })
 
-    vim.api.nvim_create_autocmd("WinNew", {
+    -- 'winbar' is a per-buffer window option (`:h w_onebuf_opt`): the value a
+    -- window sets is stored on the buffer it was showing, and every window that
+    -- shows that buffer afterwards is given that value on the way in. So the
+    -- panel's bar reaches windows it never drew, by two routes. A window made
+    -- from a panel window (splitting it, or carrying it off with `:wincmd T`,
+    -- which really means "new window over there, close this one") copies it
+    -- straight off the window; and one that merely enters a run buffer the panel
+    -- has since left picks it up from the buffer -- that window may have existed
+    -- all along. Either way no render ever touches a window that is not the
+    -- panel's, so the copy would stand for good: it is a bar of a panel that
+    -- moved on, with click regions onto tabs that are no longer there.
+    -- WinNew catches the first route and BufWinEnter the second; the signature
+    -- every bar ends with tells the guard when it is looking at one of ours.
+    vim.api.nvim_create_autocmd({ "WinNew", "BufWinEnter" }, {
         group    = group,
         callback = function()
-            -- Window options are copied onto a window made from another one, so
-            -- splitting a panel window (or carrying it off with `:wincmd T`,
-            -- which really means "new window over there, close this one")
-            -- leaves a stray carrying our click regions that no render ever
-            -- updates. The click handler in 'winbar' is the giveaway; it is
-            -- there regardless of how the bar was cropped for its width.
-            local new_win = vim.api.nvim_get_current_win()
-            if not self:_owns_win(new_win)
-                and vim.wo[new_win].winbar:find("__neotasks_panel_click", 1, true) then
-                vim.api.nvim_win_call(new_win, function() vim.cmd(_RESET_OPTS) end)
+            local win = vim.api.nvim_get_current_win()
+            if not self:_owns_win(win)
+                and vim.wo[win].winbar:find(_BAR_MARK, 1, true) then
+                vim.api.nvim_win_call(win, function() vim.cmd(_RESET_OPTS) end)
             end
         end,
     })
@@ -786,7 +803,7 @@ function Panel:_refresh_winbar()
             separator  = config.panel.winbar.separator,
             unread     = config.panel.winbar.unread,
             numbers    = config.panel.winbar.numbers,
-            click      = "v:lua.__neotasks_panel_click",
+            click      = _CLICK,
             empty_text = config.panel.empty_text,
         })
 
@@ -867,7 +884,7 @@ end
 -- Winbar click handler. The `%N@fn@` syntax needs a global, and there is exactly
 -- one panel, so a single global is enough.
 ---@param num integer
-function _G.__neotasks_panel_click(num)
+function _G._neotasks_panel_click(num)
     Panel.get():jump(num)
 end
 

@@ -15,10 +15,36 @@ local function opts(over)
         separator  = "│",
         unread     = "•",
         numbers    = true,
-        click      = "v:lua.__neotasks_panel_click",
+        click      = "v:lua._neotasks_panel_click",
         empty_text = "No pages",
     }, over or {})
 end
+
+-- The tail every bar ends with: a zero-width click region on the panel's own
+-- handler, which is how the panel tells a bar of its own from one a window was
+-- merely handed (see panel.lua). Zero-width, so it draws nothing and is not
+-- itself a target; it has to be there in every bar, however the bar was built.
+local MARK = "%0@v:lua._neotasks_panel_click@%X"
+
+---@param bar string
+local function signed(bar)
+    assert.equals(MARK, bar:sub(-#MARK), "bar does not end with the panel's signature")
+end
+
+describe("signature", function()
+    it("ends the placeholder bar too", function()
+        signed(winbar.build({}, 80, opts()))
+    end)
+
+    it("ends a bar of tabs", function()
+        signed(winbar.build({ { num = 1, label = "build", active = true, pages = {} } }, 80, opts()))
+    end)
+
+    it("survives cropping the bar down to nothing", function()
+        local tabs = { { num = 1, label = string.rep("x", 60), active = true, pages = {} } }
+        signed(winbar.build(tabs, 1, opts()))
+    end)
+end)
 
 describe("empty", function()
     it("renders the placeholder text when there are no tabs", function()

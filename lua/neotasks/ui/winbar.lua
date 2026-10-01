@@ -151,13 +151,24 @@ local function _flatten(items, width, nums)
 end
 
 --- Render the winbar for a set of group tabs, cropping labels to fit `width`.
+---
+--- Every bar returned ends with the panel's signature, so that the panel can
+--- recognise a bar of its own wherever it turns up.
 ---@param tabs  neotasks.ui.winbar.Tab[]
 ---@param width integer
 ---@param opts  neotasks.ui.winbar.Opts
 ---@return string
 function M.build(tabs, width, opts)
+    -- Every bar ends with a zero-width click region on the panel's own handler.
+    -- It draws nothing and encloses no text, so it is not a target to click: it
+    -- is the panel's signature, and panel.lua's guard looks for exactly this
+    -- string to tell its own bar from one a window was merely handed. The empty
+    -- bar needs it most, being the one bar that would otherwise carry no click
+    -- region at all, and so the one bar the guard could not tell.
+    local mark = string.format("%%0@%s@%%X", opts.click)
+
     if #tabs == 0 then
-        return "%#WinBar# %#NeotasksBadgeMuted#" .. opts.empty_text .. "%#WinBar#"
+        return "%#WinBar# %#NeotasksBadgeMuted#" .. opts.empty_text .. "%#WinBar#" .. mark
     end
 
     local items = {} ---@type {[1]: integer, [2]: string, [3]: integer?}[]
@@ -242,7 +253,7 @@ function M.build(tabs, width, opts)
         nums[ti] = tab.num and 1 or #tab.pages
     end
 
-    return _flatten(items, width, nums)
+    return _flatten(items, width, nums) .. mark
 end
 
 return M
