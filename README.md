@@ -543,7 +543,7 @@ require("neotasks").setup({
     min_size   = 6,         -- floor in lines/columns
     empty_text = "No pages",
     winbar     = {
-      separator = "│",      -- drawn between adjacent tabs
+      separator = "❘",      -- drawn between adjacent tabs
       unread    = "•",      -- marker on a tab with unseen output
       numbers   = true,     -- prefix each tab with its jump number
     },

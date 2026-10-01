@@ -1,6 +1,6 @@
 local ordered    = require("neotasks.util.table_util").ordered
 local term       = require("neotasks.util.term")
-local notify     = require("neotasks.ui")
+local notify     = require("neotasks.notify")
 local str_util   = require("neotasks.util.strutil")
 local qfmatchers = require("neotasks.types.qfmatchers")
 
@@ -66,14 +66,14 @@ local M = {
         ---@cast task neotasks.ProcessTask
         local command = task.command
         if not command then
-            notify.notify_error("process task '" .. ctx.name .. "' has no command")
+            notify.error("process task '" .. ctx.name .. "' has no command")
             on_done(false)
             return function() end
         end
 
         local qf_parse, qf_err = _make_qf_parser(task.quickfix_matcher)
         if qf_err then
-            notify.notify_error(qf_err)
+            notify.error(qf_err)
             on_done(false)
             return function() end
         end
@@ -88,7 +88,7 @@ local M = {
         if type(command) == "string" then
             cmd = str_util.split_shell_args(command)
             if #cmd == 0 then
-                notify.notify_error("process task '" .. ctx.name .. "': command string is empty")
+                notify.error("process task '" .. ctx.name .. "': command string is empty")
                 on_done(false)
                 return function() end
             end

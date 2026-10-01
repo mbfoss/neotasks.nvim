@@ -1,6 +1,6 @@
 local ordered    = require("neotasks.util.table_util").ordered
 local term       = require("neotasks.util.term")
-local notify     = require("neotasks.ui")
+local notify     = require("neotasks.notify")
 local qfmatchers = require("neotasks.types.qfmatchers")
 
 ---@param s string
@@ -62,14 +62,14 @@ local M = {
         ---@cast task neotasks.ShellTask
         local command = task.command
         if type(command) ~= "string" then
-            notify.notify_error("shell task '" .. ctx.name .. "': command must be a string")
+            notify.error("shell task '" .. ctx.name .. "': command must be a string")
             on_done(false)
             return function() end
         end
 
         local qf_parse, qf_err = _make_qf_parser(task.quickfix_matcher)
         if qf_err then
-            notify.notify_error(qf_err)
+            notify.error(qf_err)
             on_done(false)
             return function() end
         end

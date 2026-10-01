@@ -859,7 +859,7 @@ end
 function M.open(opts)
     local ok, err = Panel.get():open(opts)
     if not ok then
-        require("neotasks.ui").notify_warning("cannot open panel: " .. (err or "not enough room"))
+        require("neotasks.notify").warn("cannot open panel: " .. (err or "not enough room"))
     end
     return ok
 end
@@ -875,7 +875,7 @@ end
 function M.toggle(opts)
     local ok, err = Panel.get():toggle(opts)
     if not ok then
-        require("neotasks.ui").notify_warning("cannot open panel: " .. (err or "not enough room"))
+        require("neotasks.notify").warn("cannot open panel: " .. (err or "not enough room"))
     end
     return ok
 end

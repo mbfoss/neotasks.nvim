@@ -224,7 +224,7 @@ function M.build(tabs, width, opts)
             for pi, page in ipairs(tab.pages) do
                 if pi > 1 then
                     push(_ZERO, "%#NeotasksBadgeMuted#", ti)
-                    push(_FIXED, "|", ti)
+                    push(_FIXED, opts.separator, ti)
                 end
                 open_click(page.num, ti)
                 -- A page that is neither current nor part of the active group is

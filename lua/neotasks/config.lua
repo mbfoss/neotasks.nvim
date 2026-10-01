@@ -43,7 +43,7 @@ local defaults = {
         min_size   = 6,
         empty_text = "No pages",
         winbar     = {
-            separator = "│",
+            separator = "❘",
             unread    = "•",
             numbers   = true,
         },

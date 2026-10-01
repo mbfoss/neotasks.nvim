@@ -26,6 +26,8 @@ Public API, [lua/neotasks/init.lua](lua/neotasks/init.lua):
 - [commands.lua](lua/neotasks/commands.lua): `:Neotasks` subcommand dispatch
   and completion. The command itself is created by `setup()` in
   [init.lua](lua/neotasks/init.lua), which requires no Lua until first use.
+- [notify.lua](lua/neotasks/notify.lua): the plugin's user-facing messages.
+  Every `vim.notify` goes through here, tagged `[neotasks]` and levelled.
 - [runner/](lua/neotasks/runner/): resolves and executes tasks: `resolver`
   builds the dependency order, `exec` runs them.
 - [types/](lua/neotasks/types/): task-type registry and built-ins

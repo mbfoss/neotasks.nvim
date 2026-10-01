@@ -6,7 +6,7 @@ local Signal       = require("neotasks.util.Signal")
 local toml         = require("neotasks.tomltools")
 local task_types   = require("neotasks.types")
 local resolver     = require("neotasks.runner.resolver")
-local notify       = require("neotasks.ui")
+local notify       = require("neotasks.notify")
 local save_buffers = require("neotasks.util.save_buffers")
 local project      = require("neotasks.project")
 
@@ -309,7 +309,7 @@ end
 local function _run_task_coro(name, tasks, run_id, primary, expressions, on_start)
     local task = tasks[name]
     if not task then
-        notify.notify_error("unknown task: " .. name)
+        notify.error("unknown task: " .. name)
         return false
     end
 
@@ -608,7 +608,7 @@ function M.run(task_name, toml_path)
     local policy = task.if_running or "refuse"
 
     if policy == "refuse" then
-        notify.notify_warning("task already running: " .. task_name)
+        notify.warn("task already running: " .. task_name)
     elseif policy == "parallel" then
         _launch(task_name, tasks, nil, expressions)
     elseif policy == "wait" then

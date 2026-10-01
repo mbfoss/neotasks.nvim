@@ -2,7 +2,7 @@ local config       = require("neotasks.config").current
 local runner       = require("neotasks.runner")
 local task_types   = require("neotasks.types")
 local runview      = require("neotasks.ui.runview")
-local ui           = require("neotasks.ui")
+local notify       = require("neotasks.notify")
 local select       = require("neotasks.util.select").select
 local toml         = require("neotasks.tomltools")
 local project       = require("neotasks.project")
@@ -16,26 +16,26 @@ local _last_task   = nil
 ---@param args string[]
 local function _run_command(args)
     if #args > 1 then
-        ui.notify_error("run takes at most one task name")
+        notify.error("run takes at most one task name")
         return
     end
     local wanted = args[1]
     local cwd, err = project.find_root()
     if not cwd then
-        ui.notify_error(err or "not in a project root")
+        notify.error(err or "not in a project root")
         return
     end
 
     local path = vim.fs.normalize(vim.fs.joinpath(cwd, config.tasks_filename))
     local names, by_name, list_err = runner.list_tasks(path)
     if not names then
-        ui.notify_error(list_err or "failed to load tasks")
+        notify.error(list_err or "failed to load tasks")
         return
     end
 
     if wanted then
         if not (by_name and by_name[wanted]) then
-            ui.notify_error("no such task: " .. wanted)
+            notify.error("no such task: " .. wanted)
             return
         end
         _last_task = { name = wanted, path = path }
@@ -66,7 +66,7 @@ end
 local function _eval_command(args)
     local cwd, err = project.find_root()
     if not cwd then
-        ui.notify_error(err or "not in a project root")
+        notify.error(err or "not in a project root")
         return
     end
     local path = vim.fs.normalize(vim.fs.joinpath(cwd, config.tasks_filename))
@@ -81,7 +81,7 @@ local function _eval_command(args)
         end
         runner.eval_expression(expr, path, function(ok, result, eval_err)
             if not ok then
-                ui.notify_error(eval_err or "expression evaluation failed")
+                notify.error(eval_err or "expression evaluation failed")
                 return
             end
             local text = type(result) == "string" and result or vim.inspect(result)
@@ -98,17 +98,17 @@ end
 
 local function _restart_command()
     if not _last_task then
-        ui.notify_warning("no task has been run yet")
+        notify.warn("no task has been run yet")
         return
     end
     local cwd, err = project.find_root()
     if not cwd then
-        ui.notify_error(err or "not in a project root")
+        notify.error(err or "not in a project root")
         return
     end
     local path = vim.fs.normalize(vim.fs.joinpath(cwd, config.tasks_filename))
     if path ~= _last_task.path then
-        ui.notify_warning("project changed since last run")
+        notify.warn("project changed since last run")
         return
     end
     runner.run(_last_task.name, _last_task.path)
@@ -127,7 +127,7 @@ local function _stop_command()
     end
     table.sort(names)
     if #names == 0 then
-        ui.notify_warning("no running tasks")
+        notify.warn("no running tasks")
         return
     end
     vim.ui.select(names, { prompt = "Stop task:" }, function(choice)
@@ -148,7 +148,7 @@ local function _stop_all_command()
         end
     end
     if not next(seen) then
-        ui.notify_warning("no running tasks")
+        notify.warn("no running tasks")
     end
 end
 
@@ -158,7 +158,7 @@ end
 local function _clean_command(args)
     local mode = args[1] or "all"
     if #args > 1 or (mode ~= "all" and mode ~= "one") then
-        ui.notify_error("clean takes an optional argument: all|one")
+        notify.error("clean takes an optional argument: all|one")
         return
     end
     local entries = runner.disposable()
@@ -169,7 +169,7 @@ local function _clean_command(args)
         return
     end
     if #entries == 0 then
-        ui.notify_warning("no finished tasks to dispose")
+        notify.warn("no finished tasks to dispose")
         return
     end
     local labels = vim.tbl_map(function(e) return e.label end, entries)
@@ -178,7 +178,7 @@ local function _clean_command(args)
         for _, e in ipairs(entries) do
             if e.label == choice then
                 local ok, err = runner.dispose(e.run_id)
-                if not ok then ui.notify_error(err or "dispose failed") end
+                if not ok then notify.error(err or "dispose failed") end
                 return
             end
         end
@@ -205,19 +205,19 @@ local function _panel_command(args)
     elseif sub == "jump" then
         local n = tonumber(args[2])
         if not n then
-            ui.notify_warning("jump needs a tab number")
+            notify.warn("jump needs a tab number")
         elseif not panel.jump(n, { enter = true }) then
-            ui.notify_warning("no tab " .. n)
+            notify.warn("no tab " .. n)
         end
     else
-        ui.notify_warning("invalid panel subcommand: " .. tostring(sub))
+        notify.warn("invalid panel subcommand: " .. tostring(sub))
     end
 end
 
 ---@param args string[]
 local function _lsp_dump_command(args)
     if not config.lsp_debug_commands then
-        ui.notify_warning("lsp_debug_commands is not enabled")
+        notify.warn("lsp_debug_commands is not enabled")
         return
     end
     local buf = vim.api.nvim_get_current_buf()
@@ -229,7 +229,7 @@ local function _add_template_command()
     local bufnr = vim.api.nvim_get_current_buf()
     local fname = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t")
     if fname ~= config.tasks_filename then
-        ui.notify_warning("not in the tasks file (" .. config.tasks_filename .. ")")
+        notify.warn("not in the tasks file (" .. config.tasks_filename .. ")")
         return
     end
 
@@ -241,7 +241,7 @@ local function _add_template_command()
     table.sort(type_names)
 
     if #type_names == 0 then
-        ui.notify_warning("no task types with templates defined")
+        notify.warn("no task types with templates defined")
         return
     end
 
@@ -268,7 +268,7 @@ local function _add_template_command()
         local type_def = all_types[type_name]
         local function doselect(templates)
             if not templates or #templates == 0 then
-                ui.notify_warning("no templates for type: " .. type_name)
+                notify.warn("no templates for type: " .. type_name)
                 return
             end
             if #templates == 1 then
@@ -332,7 +332,7 @@ function M.run(_cmd, args, _opts)
     elseif action == "panel" then
         _panel_command(args)
     else
-        ui.notify_warning("Invalid action: " .. tostring(action))
+        notify.warn("Invalid action: " .. tostring(action))
     end
 end
 

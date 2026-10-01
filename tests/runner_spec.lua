@@ -7,7 +7,7 @@
 
 local exec       = require("neotasks.runner.exec")
 local task_types = require("neotasks.types")
-local ui         = require("neotasks.ui")
+local notify     = require("neotasks.notify")
 
 local tasks_filename = require("neotasks.config").current.tasks_filename
 
@@ -182,11 +182,11 @@ describe("runner exec", function()
 
     before_each(function()
         -- Silence and capture user-facing notifications.
-        warnings          = {}
-        prev_notify       = vim.notify
-        vim.notify        = function() end
-        prev_warn         = ui.notify_warning
-        ui.notify_warning = function(msg) table.insert(warnings, msg) end
+        warnings    = {}
+        prev_notify = vim.notify
+        vim.notify  = function() end
+        prev_warn   = notify.warn
+        notify.warn = function(msg) table.insert(warnings, msg) end
 
         -- Reset shared type state.
         for k in pairs(run_order) do run_order[k] = nil end
@@ -195,8 +195,8 @@ describe("runner exec", function()
     end)
 
     after_each(function()
-        vim.notify        = prev_notify
-        ui.notify_warning = prev_warn
+        vim.notify  = prev_notify
+        notify.warn = prev_warn
 
         -- Settle any lingering active runs so they don't outlive the test.
         for _, e in pairs(exec.get_all()) do
