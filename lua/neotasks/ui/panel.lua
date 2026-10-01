@@ -757,11 +757,12 @@ function Panel:_refresh_winbar()
     self._targets       = targets
 
     local text = winbar.build(tabs, vim.api.nvim_win_get_width(win), {
-        separator  = config.panel.winbar.separator,
-        unread     = config.panel.winbar.unread,
-        numbers    = config.panel.winbar.numbers,
-        click      = _CLICK,
-        empty_text = config.panel.empty_text,
+        group_separator = config.panel.winbar.group_separator,
+        page_separator  = config.panel.winbar.page_separator,
+        unread          = config.panel.winbar.unread,
+        numbers         = config.panel.winbar.numbers,
+        click           = _CLICK,
+        empty_text      = config.panel.empty_text,
     })
 
     -- 'winbar' is global-local: `vim.wo[win].winbar = …` would also write the

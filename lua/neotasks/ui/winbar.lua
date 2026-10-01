@@ -35,11 +35,12 @@ local _MIN_LABEL = 2
 ---@field pages   neotasks.ui.winbar.Page[]  page tabs; empty when the group has a single page
 
 ---@class neotasks.ui.winbar.Opts
----@field separator  string   between adjacent group tabs
----@field unread     string   marker for a page tab with unseen output
----@field numbers    boolean  prefix tabs with their jump number
----@field click      string   vimscript function ref for `%N@…@` click regions
----@field empty_text string   rendered when there are no tabs at all
+---@field group_separator string  between adjacent group tabs
+---@field page_separator  string  between adjacent page tabs
+---@field unread          string  marker for a page tab with unseen output
+---@field numbers         boolean prefix tabs with their jump number
+---@field click           string  vimscript function ref for `%N@…@` click regions
+---@field empty_text      string  rendered when there are no tabs at all
 
 --- Longest prefix of `text` that fits in `cols` display cells, with an ellipsis
 --- when anything had to go. Cropping counts cells, not characters: a label may
@@ -197,7 +198,7 @@ function M.build(tabs, width, opts)
 
         if ti > 1 then
             push(_ZERO, "%#NeotasksBadgeMuted#", ti)
-            push(_FIXED, opts.separator, ti)
+            push(_FIXED, opts.group_separator, ti)
         end
         push(_FIXED, " ", ti)
 
@@ -224,7 +225,7 @@ function M.build(tabs, width, opts)
             for pi, page in ipairs(tab.pages) do
                 if pi > 1 then
                     push(_ZERO, "%#NeotasksBadgeMuted#", ti)
-                    push(_FIXED, opts.separator, ti)
+                    push(_FIXED, opts.page_separator, ti)
                 end
                 open_click(page.num, ti)
                 -- A page that is neither current nor part of the active group is

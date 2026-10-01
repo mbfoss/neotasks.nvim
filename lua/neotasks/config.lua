@@ -8,9 +8,10 @@
 local M = {}
 
 ---@class neotasks.Config.Panel.Winbar
----@field separator string  drawn between adjacent group tabs
----@field unread    string  marker appended to a tab with unseen output
----@field numbers   boolean prefix each tab with its jump number
+---@field group_separator string  drawn between adjacent group tabs
+---@field page_separator  string  drawn between adjacent page tabs
+---@field unread          string  marker appended to a tab with unseen output
+---@field numbers         boolean prefix each tab with its jump number
 
 ---@class neotasks.Config.Panel
 ---@field position   "bottom"|"top"|"left"|"right" where the panel splits
@@ -43,9 +44,10 @@ local defaults = {
         min_size   = 6,
         empty_text = "No pages",
         winbar     = {
-            separator = "❘",
-            unread    = "•",
-            numbers   = true,
+            group_separator = "❘",
+            page_separator  = "❘",
+            unread          = "•",
+            numbers         = true,
         },
     },
 }

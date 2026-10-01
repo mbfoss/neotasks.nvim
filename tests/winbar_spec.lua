@@ -12,11 +12,12 @@ local winbar = require("neotasks.ui.winbar")
 ---@return table
 local function opts(over)
     return vim.tbl_extend("force", {
-        separator  = "│",
-        unread     = "•",
-        numbers    = true,
-        click      = "v:lua._neotasks_panel_click",
-        empty_text = "No pages",
+        group_separator = "│",
+        page_separator  = "│",
+        unread          = "•",
+        numbers         = true,
+        click           = "v:lua._neotasks_panel_click",
+        empty_text      = "No pages",
     }, over or {})
 end
 
