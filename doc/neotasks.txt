@@ -522,17 +522,17 @@ opens the task picker.
   :Neotasks template      Insert a task template at the cursor (only in the
                           tasks file).
 
-  :Neotasks panel         Drive the output panel: `open`, `close`, `toggle`
-                          (default), `next`, `prev`, `jump N`.
+  :Neotasks panel [sub]   Drive the output panel: open, close, toggle
+                          (default), next, prev, jump N.
   ---------------------------------------------------------------------------
 Subcommands and task names complete on `<Tab>`.
 
-The command name is fixed. To use a shorter name such as `:Tasks`, define a
-command that forwards its arguments and completion to `:Neotasks`.
+The command name is fixed. To use a shorter name such as `:Tasks`, register an
+alias after `setup()` — it forwards arguments and completion to `:Neotasks`:
 
 >lua
-    vim.api.nvim_create_user_command("Tasks", function(o) vim.cmd("Neotasks " .. o.args) end,
-      { nargs = "*", complete = function(_, l) return vim.fn.getcompletion((l:gsub("^[%s:]*%a+", "Neotasks", 1)), "cmdline") end })
+    require("neotasks").setup()
+    require("neotasks").create_cmd_alias("Tasks")
 <
 
 
@@ -541,15 +541,15 @@ command that forwards its arguments and completion to `:Neotasks`.
 
 Every run gets its own scratch log buffer, a timestamped record of dependencies
 waited on, the resolved task, files saved, and how it ended, named after the
-run, e.g. `neotasks://build#1`, alongside whatever buffers the task type spawns
-(a terminal per `process`/`shell` task, streaming live).
+run, e.g.� `neotasks://build#1`, alongside whatever buffers the task type
+spawns (a terminal per `process`/`shell` task, streaming live).
 
 Those buffers appear in the built-in output panel: a split at the bottom of the
 editor whose winbar is a flat, numbered list of runs. Each run is one tab, with
-a status badge (`▶` running, `✓` ok, `✗` failed, `⧗` waiting on dependencies),
-and a tab that spawns more than one buffer (its log plus a terminal, say) shows
-a page per buffer in brackets. The panel opens itself on every new run, sized by
-`panel.size`.
+a status badge (`▶` running, `✓` ok, `✗` failed, `⧗` waiting on
+dependencies), and a tab that spawns more than one buffer (its log plus a
+terminal, say) shows a page per buffer in brackets. The panel opens itself on
+every new run, sized by `panel.size`.
 
 - Click a numbered tab, or `:Neotasks panel jump N`, to switch; `next`/`prev`
     step through the numbering. New output on a tab that is not on screen is
@@ -571,7 +571,8 @@ Disposal:
     whether the run may go and it deletes the buffers; the view only reacts once
     it has happened.
 
-See |neotasks-config| for `panel.position`, `panel.size` and the winbar options.
+See |neotasks-config| for `panel.position`, `panel.size` and the winbar
+options.
 
 
 ==============================================================================
@@ -606,7 +607,7 @@ fields optional, defaults shown:
       tasks_filename = "neotasks.toml",  -- per-project tasks file (also the project marker)
       storage_dir    = ".neotasks",  -- per-project state directory
       debug_adapters = {},            -- ezdap adapters usable by `debug` tasks
-
+    
       -- the task-output panel
       panel = {
         position   = "bottom",  -- "bottom" | "top" | "left" | "right"
@@ -625,8 +626,8 @@ fields optional, defaults shown:
 
 - `debug_adapters` is what |neotasks-`debug`| tasks may name in `adapter`, in
     addition to the always-included `remote` adapter.
-- `panel` configures the |neotasks-output| panel. A run opens it on its own;
-    these values only place and size it.
+- `panel` configures the |neotasks-task-output-panel|. A run opens it on
+    its own; these values only place and size it.
 - `require("neotasks").in_project()` reports whether the cwd is a neotasks
     project.
 

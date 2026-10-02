@@ -461,12 +461,12 @@ argument it opens the task picker.
 
 Subcommands and task names complete on `<Tab>`.
 
-The command name is fixed. To use a shorter name such as `:Tasks`, define a
-command that forwards its arguments and completion to `:Neotasks`.
+The command name is fixed. To use a shorter name such as `:Tasks`, register an
+alias after `setup()` — it forwards arguments and completion to `:Neotasks`:
 
 ```lua
-vim.api.nvim_create_user_command("Tasks", function(o) vim.cmd("Neotasks " .. o.args) end,
-  { nargs = "*", complete = function(_, l) return vim.fn.getcompletion((l:gsub("^[%s:]*%a+", "Neotasks", 1)), "cmdline") end })
+require("neotasks").setup()
+require("neotasks").create_cmd_alias("Tasks")
 ```
 
 ## Task output <!-- tag: output -->

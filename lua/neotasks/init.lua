@@ -58,10 +58,14 @@ function M.is_setup()
     return _setup_called
 end
 
---- Create the user command. Its callbacks require the command plumbing and the
+--- Create a user command under `name` that forwards its arguments and its
+--- completion to the command plumbing: `:Neotasks` itself, and the aliases
+--- `create_cmd_alias` makes. Its callbacks require the plumbing and the
 --- subcommands only on first use, so `setup()` stays cheap at startup.
-local function _create_command()
-    vim.api.nvim_create_user_command("Neotasks", function(opts)
+---@param name string
+---@param desc string
+local function _create_command(name, desc)
+    vim.api.nvim_create_user_command(name, function(opts)
         -- nargs="*" always yields fargs; the fallback is only to satisfy its
         -- optional type. Errors become notifications, not stack traces.
         local ok, err = pcall(require("neotasks.commands").run, opts.name, opts.fargs or {}, opts)
@@ -73,7 +77,7 @@ local function _create_command()
         end
     end, {
         nargs    = "*",
-        desc     = "Run, stop and inspect project tasks",
+        desc     = desc,
         complete = function(arg_lead, cmd_line, _)
             return require("neotasks.util.usercmd").complete(arg_lead, cmd_line,
                 require("neotasks.commands").complete)
@@ -142,7 +146,33 @@ function M.setup(opts)
         end
     end
 
-    _create_command()
+    _create_command("Neotasks", "Run, stop and inspect project tasks")
+end
+
+--- Register a user command `name` that forwards its arguments and completion to
+--- `:Neotasks`, so the plugin can be reached as e.g. `:Tasks`. No range, because
+--- `:Neotasks` takes none. A name already taken is left alone with a warning.
+---
+--- `setup()` must have run: it is what registers the command, the filetype and
+--- the language server, so an alias against an unconfigured plugin is refused
+--- rather than half-working.
+---@param name string  a user command name: an uppercase letter, then word characters
+---@return boolean created  false when `name` was already taken
+function M.create_cmd_alias(name)
+    if not _setup_called then
+        error("[neotasks] require('neotasks').setup() must be called before create_cmd_alias()", 2)
+    end
+    if type(name) ~= "string" or not name:match("^%u") then
+        error("[neotasks] create_cmd_alias() needs a user command name: "
+            .. "an uppercase letter, then word characters", 2)
+    end
+    if vim.api.nvim_get_commands({})[name] then
+        vim.notify(("[neotasks] :%s is already taken, so no alias was created"):format(name),
+            vim.log.levels.WARN)
+        return false
+    end
+    _create_command(name, "Run, stop and inspect project tasks (alias for :Neotasks)")
+    return true
 end
 
 ---@return boolean
