@@ -34,7 +34,7 @@ local function _check_requirements()
 
     -- Optional. ezdap names its adapters without a setup(), but a `debug` task
     -- cannot start before one.
-    if not pcall(require, "ezdap.schema") then
+    if not pcall(require, "ezdap") then
         health.info("ezdap.nvim is not installed, so there is no `debug` task type")
     elseif require("ezdap").is_setup() then
         health.ok("ezdap.nvim is installed and set up (the `debug` task type is available)")

@@ -59,17 +59,16 @@ end
 --- input the mode declares, described with the input's own `description` and
 --- typed in the authored forms ezdap's input registry states as JSON Schema.
 --- Every input resolves to a row there, so every one of them is described.
----@param sch table  the `ezdap.schema` module
+---@param sch table  the `ezdap` module
 ---@param adapter string
 ---@param mode_name string
 ---@return table
 local function _parameters_schema(sch, adapter, mode_name)
-    local dap_inputs = require("ezdap.inputs")
-    local required   = sch.mode_required(adapter, mode_name)
+    local required = sch.mode_required(adapter, mode_name)
 
-    local props      = {}
+    local props    = {}
     for name, input in pairs(sch.mode_inputs(adapter, mode_name)) do
-        local prop = _authored_forms(dap_inputs.json_schema(input))
+        local prop = _authored_forms(sch.input_schema(input))
         prop.description = input.description
         props[name] = prop
     end
@@ -85,7 +84,7 @@ end
 --- A `mode` property schema listing an adapter's mode names,
 --- with each name's `description` (from ezdap) attached so the LSP can show
 --- it on completion/hover.
----@param sch table  the `ezdap.schema` module
+---@param sch table  the `ezdap` module
 ---@param adapter string
 ---@param mode_names string[]
 ---@return table
@@ -109,7 +108,7 @@ end
 --- (adapter, mode) `parameters` branches inside its own `then`, so the
 --- navigator walks only the matched adapter's modes. An adapter declaring no
 --- modes gets no branch - an empty `mode` oneOf would reject every value.
----@param sch table  the `ezdap.schema` module
+---@param sch table  the `ezdap` module
 ---@param adapter string
 ---@return table?
 local function _adapter_branch(sch, adapter)
@@ -150,7 +149,7 @@ local function _adapter_branch(sch, adapter)
 end
 
 --- The per-adapter branches, for every adapter that declares modes.
----@param sch table  the `ezdap.schema` module
+---@param sch table  the `ezdap` module
 ---@param adapters string[]  the configured adapter names
 ---@return table[]
 local function _mode_branches(sch, adapters)
@@ -166,7 +165,7 @@ end
 --- per-adapter named modes.
 ---@return table
 local function _schema()
-    local sch           = require("ezdap.schema")
+    local sch           = require("ezdap")
     local adapters      = M.adapters()
     local mode_branches = _mode_branches(sch, adapters)
 

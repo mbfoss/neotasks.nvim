@@ -105,11 +105,11 @@ function M.build_resolved_schema()
     return s
 end
 
---- True if the companion ezdap plugin is available. Probes the specific
---- submodule the `debug` type needs; a plain `require` is side-effect-free here.
+--- True if the companion ezdap plugin is available. Probes its root module,
+--- which the `debug` type needs; a plain `require` is side-effect-free here.
 ---@return boolean
 local function _has_ezdap()
-    return (pcall(require, "ezdap.schema"))
+    return (pcall(require, "ezdap"))
 end
 
 -- Built-in task types (loaded lazily on first use)
