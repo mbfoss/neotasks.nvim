@@ -1,9 +1,8 @@
 local M = {}
 
--- This module does no argument parsing of its own. Dispatch passes Neovim's
--- opts.fargs straight through, and completion runs the raw command line back
--- through nvim_parse_cmd, so both paths split by Vim's native rules
--- (:h <f-args>):
+-- Nothing here parses arguments: the command body is handed Neovim's
+-- opts.fargs untouched, and completion runs the raw command line back through
+-- nvim_parse_cmd, so both paths split by Vim's native rules (:h <f-args>):
 --
 --   Arguments are separated by unescaped whitespace. A backslash escapes the
 --   character after it: \<space> (or \<tab>) is that literal whitespace and
@@ -17,10 +16,6 @@ local M = {}
 --     "a b"    -> "a  and  b"        --p=x\ y -> --p=x y
 --
 ---@alias neotasks.util.usercmd.subcommand fun(cmd:string,rest:string[],arg_lead:string):string[]
-
----@alias neotasks.util.usercmd.run_fn
----| fun(cmd:string,args:string[],opts:vim.api.keyset.create_user_command.command_args)
-
 
 --- Completion for a command registered with `nargs = "*"`, to be called from
 --- inside the `complete` callback so that this module -- and whatever
@@ -54,25 +49,6 @@ function M.complete(arg_lead, cmd_line, subcommand)
     end
 
     return filter(subcommand(parsed.cmd, rest, arg_lead))
-end
-
---- Body of a command registered with `nargs = "*"`: hands Neovim's `fargs` to
---- `run_fn`, reporting any error it raises as a notification rather than as a
---- stack trace. Called from inside the command callback, so nothing here is
---- loaded until the command is first run.
----@param opts vim.api.keyset.create_user_command.command_args
----@param run_fn neotasks.util.usercmd.run_fn
-function M.handle(opts, run_fn)
-    local cmd = opts.name
-    -- nargs="*" always yields fargs; the fallback is only to satisfy its
-    -- optional type.
-    local ok, err = pcall(run_fn, cmd, opts.fargs or {}, opts)
-    if not ok then
-        vim.notify(
-            "[neotasks.util.nvim] " .. cmd .. " command error\n" .. tostring(err),
-            vim.log.levels.ERROR
-        )
-    end
 end
 
 return M

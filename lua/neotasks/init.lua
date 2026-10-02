@@ -62,7 +62,15 @@ end
 --- subcommands only on first use, so `setup()` stays cheap at startup.
 local function _create_command()
     vim.api.nvim_create_user_command("Neotasks", function(opts)
-        require("neotasks.util.usercmd").handle(opts, require("neotasks.commands").run)
+        -- nargs="*" always yields fargs; the fallback is only to satisfy its
+        -- optional type. Errors become notifications, not stack traces.
+        local ok, err = pcall(require("neotasks.commands").run, opts.name, opts.fargs or {}, opts)
+        if not ok then
+            vim.notify(
+                "[neotasks.util.nvim] " .. opts.name .. " command error\n" .. tostring(err),
+                vim.log.levels.ERROR
+            )
+        end
     end, {
         nargs    = "*",
         desc     = "Run, stop and inspect project tasks",

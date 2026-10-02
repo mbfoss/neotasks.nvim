@@ -301,8 +301,8 @@ local function _add_template_command()
     end
 end
 
---- Dispatch a `:Neotasks …` invocation. Called through `util.usercmd.handle`, which
---- has already split the arguments and will report any error raised here.
+--- Dispatch a `:Neotasks …` invocation, with `args` already split by Neovim. The
+--- command callback in `neotasks` wraps this in `pcall` and reports any error.
 ---@param _cmd     string
 ---@param args     string[]
 ---@param _opts    vim.api.keyset.create_user_command.command_args
