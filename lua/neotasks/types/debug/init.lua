@@ -42,19 +42,6 @@ function M.adapters()
     return out
 end
 
---- Widen one input's schema to every form the tasks file may write it in: the
---- typed form ezdap's input registry states, plus the string form it reads for
---- the same value (`port = "8080"`, `env = "A=1,B=2"`) - `resolve_task` takes
---- either. The typed constraints stay, and apply to the typed form alone.
----@param prop table  the input's typed form, as JSON Schema (mutated in place)
----@return table
-local function _authored_forms(prop)
-    if prop.type ~= "string" then
-        prop.type = { prop.type, "string" }
-    end
-    return prop
-end
-
 --- The `parameters` object schema for one (adapter, mode): one property per
 --- input the mode declares, described with the input's own `description` and
 --- typed in the authored forms ezdap's input registry states as JSON Schema.
@@ -68,7 +55,7 @@ local function _parameters_schema(sch, adapter, mode_name)
 
     local props    = {}
     for name, input in pairs(sch.mode_inputs(adapter, mode_name)) do
-        local prop = _authored_forms(sch.input_schema(input))
+        local prop = sch.input_schema(input)
         prop.description = input.description
         props[name] = prop
     end
