@@ -473,7 +473,7 @@ require("neotasks").create_cmd_alias("Tasks")
 
 Every run gets its own scratch log buffer, a timestamped record of dependencies
 waited on, the resolved task, files saved, and how it ended, named after the
-run, e.g. `neotasks://build#1`, alongside whatever buffers the task type spawns
+run, e.g. `neotasks://1/build:log`, alongside whatever buffers the task type spawns
 (a terminal per `process`/`shell` task, streaming live).
 
 Those buffers appear in the built-in output panel: a split at the bottom of the

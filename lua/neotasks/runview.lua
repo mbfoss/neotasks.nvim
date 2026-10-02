@@ -23,12 +23,12 @@ local _MAX_LOG_LINES = 10000
 ---One run's view: its log buffer, its panel group, and the task buffers already
 ---registered for display.
 ---@class neotasks.runview.View
----@field run_id  string
+---@field run_id  integer
 ---@field log_buf integer
 ---@field group   neotasks.panel.Group
 ---@field bufs    table<integer, true>  task buffers already shown
 
----@type table<string, neotasks.runview.View>
+---@type table<integer, neotasks.runview.View>
 local _views     = {}
 
 -- Badges are constant per state: the panel compares them by identity, so reusing
@@ -53,17 +53,18 @@ end
 
 -- Log buffer
 
----@param run_id string
+---@param run_id integer
+---@param name   string   the task's name
 ---@return integer bufnr
-local function _create_log_buf(run_id)
+local function _create_log_buf(run_id, name)
     local buf = uiutil.create_scratch_buffer(true, {
         bufhidden  = "hide",
         modifiable = false,
     })
-    -- Listed and named after its run the way nvim names a terminal, no slash to
-    -- read as a path: `neotasks://build#1:log`. Run ids are unique and the
-    -- buffer dies with its run, so the name is free.
-    pcall(vim.api.nvim_buf_set_name, buf, "neotasks://" .. run_id .. ":log")
+    -- Named `neotasks://<run number>/<task name>:<kind>`, matching the run's
+    -- other buffers. Run numbers are unique and the buffer dies with its run, so
+    -- the name is free.
+    pcall(vim.api.nvim_buf_set_name, buf, "neotasks://" .. run_id .. "/" .. name .. ":log")
     return buf
 end
 
@@ -120,14 +121,14 @@ end
 
 -- Views
 
----@param run_id string
+---@param run_id integer
 ---@param entry  neotasks.RunEntry
 ---@return neotasks.runview.View
 local function _ensure_view(run_id, entry)
     local view = _views[run_id]
     if view and vim.api.nvim_buf_is_valid(view.log_buf) then return view end
 
-    local log_buf = _create_log_buf(run_id)
+    local log_buf = _create_log_buf(run_id, entry.task_name)
     -- Replay whatever the run reported before this view existed.
     local lines   = {}
     for _, event in ipairs(entry.reports) do
@@ -139,7 +140,7 @@ local function _ensure_view(run_id, entry)
     -- (the panel's default focus lets a restart lose it); a dependency never
     -- takes it, so a failure leaves them on the task they ran.
     local group = panel:group({
-        id    = run_id,
+        id    = tostring(run_id),
         label = entry.task_name,
         badge = _BADGE[entry.state] or _BADGE.idle,
         busy  = _is_active(entry.state),
@@ -154,7 +155,7 @@ local function _ensure_view(run_id, entry)
     return view
 end
 
----@param run_id string
+---@param run_id integer
 ---@param entry  neotasks.RunEntry
 local function _on_state_change(run_id, entry)
     local view = _ensure_view(run_id, entry)
@@ -174,7 +175,7 @@ local function _on_state_change(run_id, entry)
     end
 end
 
----@param run_id string
+---@param run_id integer
 ---@param event  neotasks.ProgressEvent
 local function _on_report(run_id, event)
     local view = _views[run_id]
@@ -184,7 +185,7 @@ end
 
 ---The run is gone: drop its tab before its buffers are deleted (the runner
 ---deletes them right after this), then wipe the log buffer it owns.
----@param run_id string
+---@param run_id integer
 local function _on_dispose(run_id)
     local view = _views[run_id]
     if not view then return end

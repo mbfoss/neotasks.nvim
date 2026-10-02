@@ -15,7 +15,7 @@ local project      = require("neotasks.project")
 ---@field task  table   the template data to encode and insert
 
 ---@alias neotasks.RunFn fun(task: neotasks.TaskBase, ctx: neotasks.RunCtx, on_done: fun(ok: boolean)): fun()
----@alias neotasks.DisposeFn fun(run_id: string, bufnrs: neotasks.BufEntry[])
+---@alias neotasks.DisposeFn fun(run_id: integer, bufnrs: neotasks.BufEntry[])
 ---@
 ---@class neotasks.TaskTypeDef
 ---@field start                 neotasks.RunFn
@@ -41,7 +41,7 @@ local project      = require("neotasks.project")
 
 ---@class neotasks.RunCtx
 ---@field name       string   the task's name (the `[tasks.<name>]` key)
----@field run_id     string   this run's unique id (`<name>#<counter>`)
+---@field run_id     integer  this run's number (a monotonically increasing counter)
 ---@field add_bufnr  fun(bufnr: integer, opts?: neotasks.AddBufOpts)
 ---@field report     fun(message: string)
 
@@ -62,35 +62,36 @@ local project      = require("neotasks.project")
 ---@class neotasks.exec
 local M            = {}
 
----@type table<string, neotasks.RunEntry>
+---@type table<integer, neotasks.RunEntry>
 local _running     = {}
 local _run_counter = 0
 
 
----@type neotasks.util.Signal<fun(run_id: string, entry: neotasks.RunEntry)>
+---@type neotasks.util.Signal<fun(run_id: integer, entry: neotasks.RunEntry)>
 local _on_state_change = Signal.new()
 
----@type neotasks.util.Signal<fun(run_id: string, event: neotasks.ProgressEvent)>
+---@type neotasks.util.Signal<fun(run_id: integer, event: neotasks.ProgressEvent)>
 local _on_report = Signal.new()
 
----@type neotasks.util.Signal<fun(run_id: string)>
+---@type neotasks.util.Signal<fun(run_id: integer)>
 local _on_dispose = Signal.new()
 
-local function _gen_run_id(task_name)
+---@return integer run_id
+local function _gen_run_id()
     _run_counter = _run_counter + 1
-    return task_name .. "#" .. _run_counter
+    return _run_counter
 end
 
 
----@param fn fun(run_id: string, entry: neotasks.RunEntry)
+---@param fn fun(run_id: integer, entry: neotasks.RunEntry)
 ---@return fun() cancel
 function M.on_state_change(fn) return _on_state_change:subscribe(fn) end
 
----@param fn fun(run_id: string, event: neotasks.ProgressEvent)
+---@param fn fun(run_id: integer, event: neotasks.ProgressEvent)
 ---@return fun() cancel
 function M.on_report(fn) return _on_report:subscribe(fn) end
 
----@param fn fun(run_id: string)
+---@param fn fun(run_id: integer)
 ---@return fun() cancel
 function M.on_dispose(fn) return _on_dispose:subscribe(fn) end
 
@@ -99,13 +100,13 @@ local function _notify_state(run_id)
     if entry then _on_state_change:emit(run_id, entry) end
 end
 
----@param run_id string
+---@param run_id integer
 ---@param event  neotasks.ProgressEvent
 local function _notify_report(run_id, event)
     _on_report:emit(run_id, event)
 end
 
----@param run_id  string
+---@param run_id  integer
 ---@param message string
 local function _append_report(run_id, message)
     local entry = _running[run_id]
@@ -115,7 +116,7 @@ local function _append_report(run_id, message)
     _notify_report(run_id, ev)
 end
 
----@return table<string, neotasks.RunEntry>
+---@return table<integer, neotasks.RunEntry>
 function M.get_all()
     return vim.tbl_extend("force", {}, _running)
 end
@@ -287,7 +288,7 @@ end
 --- Stop a single run by id: flag it and invoke its cancel (if any). Used both by
 --- the public `stop` and to propagate a stop request down to a task's in-flight
 --- dependency runs, which are tracked under different task names.
----@param run_id string
+---@param run_id integer
 local function _stop_run(run_id)
     local entry = _running[run_id]
     if not entry then return end
@@ -301,10 +302,10 @@ end
 --- synchronously before the first yield, so callers see it immediately.
 ---@param name      string
 ---@param tasks     table<string,neotasks.TaskBase>
----@param run_id?   string   pre-existing run_id to reuse (e.g. a waiting entry)
+---@param run_id?   integer  pre-existing run_id to reuse (e.g. a waiting entry)
 ---@param primary   boolean?  true for user-initiated launches (not dependencies)
 ---@param expressions? table<string,string>  inline expression templates from the [expressions] table
----@param on_start? fun(run_id: string)  notified with the new run_id when a fresh entry is created, so a caller can track this run (e.g. to cancel it as a dependency)
+---@param on_start? fun(run_id: integer)  notified with the new run_id when a fresh entry is created, so a caller can track this run (e.g. to cancel it as a dependency)
 ---@return boolean ok
 local function _run_task_coro(name, tasks, run_id, primary, expressions, on_start)
     local task = tasks[name]
@@ -323,7 +324,7 @@ local function _run_task_coro(name, tasks, run_id, primary, expressions, on_star
     else
         _dispose_finished(name)
 
-        run_id = _gen_run_id(name)
+        run_id = _gen_run_id()
         entry = {
             task_name = name,
             task_type = task.type,
@@ -519,7 +520,7 @@ end
 ---@param message   string
 local function _fail_immediately(task_name, message)
     _dispose_finished(task_name)
-    local run_id     = _gen_run_id(task_name)
+    local run_id     = _gen_run_id()
     _running[run_id] = {
         task_name = task_name,
         state     = "failed",
@@ -537,7 +538,7 @@ end
 --- so the entry is live before launch returns.
 ---@param task_name string
 ---@param tasks     table<string,neotasks.TaskBase>
----@param run_id?   string   pre-existing run_id to reuse (e.g. a waiting entry)
+---@param run_id?   integer  pre-existing run_id to reuse (e.g. a waiting entry)
 ---@param expressions? table<string,string>  inline expression templates from the [expressions] table
 local function _launch(task_name, tasks, run_id, expressions)
     async.go(function()
@@ -612,7 +613,7 @@ function M.run(task_name, toml_path)
     elseif policy == "parallel" then
         _launch(task_name, tasks, nil, expressions)
     elseif policy == "wait" then
-        local run_id = _gen_run_id(task_name)
+        local run_id = _gen_run_id()
         _running[run_id] = {
             task_name = task_name,
             state     = "waiting",
@@ -706,11 +707,11 @@ end
 --- Whether a run may be disposed, and why not when it may not. The runner owns
 --- a run's lifetime, so this is the single place that decides; a view asks it
 --- rather than keeping a copy of the state that would drift from the truth.
----@param run_id string
+---@param run_id integer
 ---@return boolean ok, string? err
 function M.can_dispose(run_id)
     local entry = _running[run_id]
-    if not entry then return false, "run not found: " .. run_id end
+    if not entry then return false, "run not found: " .. tostring(run_id) end
     if entry.state == "running" or entry.state == "waiting" then
         return false, "task is still active; stop it first"
     end
@@ -718,7 +719,7 @@ function M.can_dispose(run_id)
 end
 
 ---@class neotasks.DisposableRun
----@field run_id string
+---@field run_id integer
 ---@field label  string  task name and how the run ended, for a picker
 
 --- Every run that can be disposed right now: the finished ones,
@@ -742,7 +743,7 @@ end
 --- This is the one teardown path. A view never tears a run down itself: it asks
 --- for this and reacts to the dispose signal, which is emitted before any
 --- buffer is deleted so subscribers can stop displaying them first.
----@param run_id string
+---@param run_id integer
 ---@return boolean ok, string? err
 function M.dispose(run_id)
     local ok, err = M.can_dispose(run_id)
@@ -779,9 +780,8 @@ function M.state(task_name)
             if entry.state == "running" or entry.state == "waiting" then
                 return "running"
             end
-            local n = tonumber(id:match("#(%d+)$")) or 0
-            if n > best_n then
-                best_n = n
+            if id > best_n then
+                best_n = id
                 result = entry.state
             end
         end

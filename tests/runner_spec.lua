@@ -130,7 +130,7 @@ end
 
 --- The run id of the (first) live entry for a task name, or nil.
 ---@param name string
----@return string?
+---@return integer?
 local function id_for(name)
     for id, e in pairs(exec.get_all()) do
         if e.task_name == name then return id end
@@ -501,7 +501,7 @@ describe("runner exec", function()
         end)
 
         it("errors for an unknown run id", function()
-            local ok, err = exec.dispose("no-such#1")
+            local ok, err = exec.dispose(99999)
             assert.is_false(ok)
             assert.is_string(err)
         end)

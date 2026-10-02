@@ -219,7 +219,7 @@ end
 
 --- Each live run's ezdap run handle, by run id, so disposing a run can drop what
 --- it left in ezdap. Entries are dropped as the runs are disposed.
----@type table<string, ezdap.runner.Run>
+---@type table<integer, ezdap.runner.Run>
 local _ezdap_runs = {}
 
 ---@param task    neotasks.DebugTask
@@ -265,7 +265,7 @@ end
 
 --- Delete the run's buffers and let ezdap drop what the run left in its own UI.
 --- A run that never got as far as starting has no handle to drop.
----@param run_id string
+---@param run_id integer
 ---@param bufnrs neotasks.BufEntry[]
 function M.dispose(run_id, bufnrs)
     local run = _ezdap_runs[run_id]

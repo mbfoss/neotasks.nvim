@@ -19,14 +19,14 @@ end
 
 --- Dispose a finished run: delete its buffers and remove it from state.
 --- Returns false + error string if the run is still active.
----@param run_id string
+---@param run_id integer
 ---@return boolean ok, string? err
 function M.dispose(run_id)
     return exec.dispose(run_id)
 end
 
 --- Whether a run may be disposed, and why not when it may not.
----@param run_id string
+---@param run_id integer
 ---@return boolean ok, string? err
 function M.can_dispose(run_id)
     return exec.can_dispose(run_id)

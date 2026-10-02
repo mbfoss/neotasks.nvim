@@ -96,10 +96,10 @@ local M = {
             cmd = command
         end
 
-        -- A readable buffer name in place of the opaque `term://…`; run_id is
-        -- unique per instance (`<name>#<counter>`), and `:term` matches how the
-        -- run's other buffers are named.
-        local bufname = "neotasks://" .. ctx.run_id .. ":term"
+        -- A readable buffer name in place of the opaque `term://…`:
+        -- `neotasks://<run number>/<task name>:term`, matching the run's other
+        -- buffers. The run number is unique per instance.
+        local bufname = "neotasks://" .. ctx.run_id .. "/" .. ctx.name .. ":term"
 
         local on_data
         if qf_parse then
