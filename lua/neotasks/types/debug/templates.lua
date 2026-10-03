@@ -8,16 +8,16 @@ local ordered = require("neotasks.util.table_util").ordered
 --- Build the `parameters` skeleton for one (adapter, mode): every required
 --- input, sorted. Starting values come from ezdap's input registry, so the task
 --- is seeded in the authored form the tasks-file schema demands.
----@param sch table  the `ezdap` module
+---@param ezdap ezdap.Module
 ---@param adapter string
 ---@param mode_name string
 ---@return table params, string[] order  empty when the mode requires nothing
-local function _parameters(sch, adapter, mode_name)
-    local required = sch.mode_required(adapter, mode_name)
-    local inputs   = sch.mode_inputs(adapter, mode_name)
+local function _parameters(ezdap, adapter, mode_name)
+    local required = ezdap.mode_required(adapter, mode_name)
+    local inputs   = ezdap.mode_inputs(adapter, mode_name)
     local params, order = {}, {}
     for _, name in ipairs(required) do
-        params[name] = sch.input_seed(inputs[name])
+        params[name] = ezdap.input_seed(inputs[name])
         order[#order + 1] = name
     end
     return params, order
@@ -25,10 +25,10 @@ end
 
 ---@return neotasks.TaskTemplate[]
 return function()
-    local sch = require("ezdap")
+    local ezdap = require("ezdap")
     local templates = {}
     for _, adapter in ipairs(require("neotasks.types.debug").adapters()) do
-        for _, mode_name in ipairs(sch.mode_names(adapter)) do
+        for _, mode_name in ipairs(ezdap.mode_names(adapter)) do
             local task_keys = { "name", "type", "adapter", "mode" }
             local task = {
                 name    = "debug-" .. adapter,
@@ -36,7 +36,7 @@ return function()
                 adapter = adapter,
                 mode = mode_name,
             }
-            local params, order = _parameters(sch, adapter, mode_name)
+            local params, order = _parameters(ezdap, adapter, mode_name)
             if #order > 0 then
                 task.parameters = ordered(params, order)
                 task_keys[#task_keys + 1] = "parameters"

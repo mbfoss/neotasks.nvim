@@ -64,14 +64,17 @@ local _scalar_schemas = {
 local function _input_schema(input)
     input = input or {}
 
-    local collection = (input.type == "list") or (input.type == "map")
+    local collection = input.type == "list" or input.type == "map"
     local entry_type = collection and input.item_type or input.type
     local scalar     = vim.deepcopy(_scalar_schemas[entry_type] or _scalar_schemas.string)
 
     -- `completion` describes one *entry*, so its values land on the element
-    -- schema: the array's `items`, the object's `additionalProperties`.
-    if vim.islist(input.completion) then
-        scalar.examples = vim.deepcopy(input.completion)
+    -- schema: the array's `items`, the object's `additionalProperties`. Only a
+    -- written-out set of values can be shown; a source name or a function has
+    -- nothing to serialize.
+    local completion = input.completion
+    if type(completion) == "table" and vim.islist(completion) then
+        scalar.examples = vim.deepcopy(completion)
     end
 
     if input.type == "list" then return { type = "array", items = scalar } end
@@ -82,15 +85,15 @@ end
 --- The `parameters` object schema for one (adapter, mode): one property per
 --- input the mode declares, described with the input's own `description` and
 --- typed in the authored form `_input_schema` derives from `ezdap.Input`.
----@param sch table  the `ezdap` module
+---@param ezdap ezdap.Module
 ---@param adapter string
 ---@param mode_name string
 ---@return table
-local function _parameters_schema(sch, adapter, mode_name)
-    local required = sch.mode_required(adapter, mode_name)
+local function _parameters_schema(ezdap, adapter, mode_name)
+    local required = ezdap.mode_required(adapter, mode_name)
 
     local props    = {}
-    for name, input in pairs(sch.mode_inputs(adapter, mode_name)) do
+    for name, input in pairs(ezdap.mode_inputs(adapter, mode_name)) do
         local prop = _input_schema(input)
         prop.description = input and input.description
         props[name] = prop
@@ -107,14 +110,14 @@ end
 --- A `mode` property schema listing an adapter's mode names,
 --- with each name's `description` (from ezdap) attached so the LSP can show
 --- it on completion/hover.
----@param sch table  the `ezdap` module
+---@param ezdap ezdap.Module
 ---@param adapter string
 ---@param mode_names string[]
 ---@return table
-local function _mode_name_schema(sch, adapter, mode_names)
+local function _mode_name_schema(ezdap, adapter, mode_names)
     local one_of = {}
     for _, mode_name in ipairs(mode_names) do
-        local mode = sch.mode(adapter, mode_name)
+        local mode = ezdap.mode(adapter, mode_name)
         one_of[#one_of + 1] = {
             const       = mode_name,
             description = mode and mode.description,
@@ -131,11 +134,11 @@ end
 --- (adapter, mode) `parameters` branches inside its own `then`, so the
 --- navigator walks only the matched adapter's modes. An adapter declaring no
 --- modes gets no branch - an empty `mode` oneOf would reject every value.
----@param sch table  the `ezdap` module
+---@param ezdap ezdap.Module
 ---@param adapter string
 ---@return table?
-local function _adapter_branch(sch, adapter)
-    local mode_names = sch.mode_names(adapter)
+local function _adapter_branch(ezdap, adapter)
+    local mode_names = ezdap.mode_names(adapter)
     if #mode_names == 0 then return nil end
 
     local mode_branches = {}
@@ -150,7 +153,7 @@ local function _adapter_branch(sch, adapter)
             },
             ["then"] = {
                 properties = {
-                    parameters = _parameters_schema(sch, adapter, mode_name),
+                    parameters = _parameters_schema(ezdap, adapter, mode_name),
                 },
             },
         }
@@ -164,7 +167,7 @@ local function _adapter_branch(sch, adapter)
         },
         ["then"] = {
             properties = {
-                mode = _mode_name_schema(sch, adapter, mode_names),
+                mode = _mode_name_schema(ezdap, adapter, mode_names),
             },
             allOf = mode_branches,
         },
@@ -172,13 +175,13 @@ local function _adapter_branch(sch, adapter)
 end
 
 --- The per-adapter branches, for every adapter that declares modes.
----@param sch table  the `ezdap` module
+---@param ezdap ezdap.Module
 ---@param adapters string[]  the configured adapter names
 ---@return table[]
-local function _mode_branches(sch, adapters)
+local function _mode_branches(ezdap, adapters)
     local branches = {}
     for _, adapter in ipairs(adapters) do
-        branches[#branches + 1] = _adapter_branch(sch, adapter)
+        branches[#branches + 1] = _adapter_branch(ezdap, adapter)
     end
     return branches
 end
@@ -188,9 +191,9 @@ end
 --- per-adapter named modes.
 ---@return table
 local function _schema()
-    local sch           = require("ezdap")
+    local ezdap         = require("ezdap")
     local adapters      = M.adapters()
-    local mode_branches = _mode_branches(sch, adapters)
+    local mode_branches = _mode_branches(ezdap, adapters)
 
     if vim.tbl_isempty(mode_branches) then
         return {
