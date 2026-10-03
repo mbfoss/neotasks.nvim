@@ -42,10 +42,46 @@ function M.adapters()
     return out
 end
 
+--- The JSON Schema a scalar input's authored value is typed as, by its
+--- `ezdap.InputType` name. A collection's entries are read as scalars too, so
+--- both slots — a scalar's `type`, a collection's `item_type` — land on one of
+--- these. An absent or unknown name is `string`, the type an input defaults to.
+---@type table<string, table>
+local _scalar_schemas = {
+    string  = { type = "string" },
+    boolean = { type = "boolean" },
+    integer = { type = "integer" },
+    number  = { type = "number" },
+}
+
+--- One declared input as JSON Schema, in the typed authored form: a string is
+--- the command line's form and reaches no document, so it is not spelled out
+--- here. A `list` is an array and a `map` an object, their entries typed by
+--- `item_type`; `completion` describes one entry either way, and only a
+--- written-out set of values can be shown, as `examples`.
+---@param input ezdap.Input?
+---@return table
+local function _input_schema(input)
+    input = input or {}
+
+    local collection = (input.type == "list") or (input.type == "map")
+    local entry_type = collection and input.item_type or input.type
+    local scalar     = vim.deepcopy(_scalar_schemas[entry_type] or _scalar_schemas.string)
+
+    -- `completion` describes one *entry*, so its values land on the element
+    -- schema: the array's `items`, the object's `additionalProperties`.
+    if vim.islist(input.completion) then
+        scalar.examples = vim.deepcopy(input.completion)
+    end
+
+    if input.type == "list" then return { type = "array", items = scalar } end
+    if input.type == "map" then return { type = "object", additionalProperties = scalar } end
+    return scalar
+end
+
 --- The `parameters` object schema for one (adapter, mode): one property per
 --- input the mode declares, described with the input's own `description` and
---- typed in the authored forms ezdap's input registry states as JSON Schema.
---- Every input resolves to a row there, so every one of them is described.
+--- typed in the authored form `_input_schema` derives from `ezdap.Input`.
 ---@param sch table  the `ezdap` module
 ---@param adapter string
 ---@param mode_name string
@@ -55,8 +91,8 @@ local function _parameters_schema(sch, adapter, mode_name)
 
     local props    = {}
     for name, input in pairs(sch.mode_inputs(adapter, mode_name)) do
-        local prop = sch.input_schema(input)
-        prop.description = input.description
+        local prop = _input_schema(input)
+        prop.description = input and input.description
         props[name] = prop
     end
 
