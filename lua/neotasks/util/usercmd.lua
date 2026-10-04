@@ -41,10 +41,12 @@ function M.complete(arg_lead, cmd_line, subcommand)
     local ok, parsed = pcall(vim.api.nvim_parse_cmd, cmd_line, {})
     if not ok then return {} end
 
-    -- Trailing whitespace means a new, still-empty argument has begun; without
-    -- it the last argument is the one being completed, not context for it.
+    -- A non-empty `arg_lead` is the argument currently being completed, so the
+    -- last parsed argument is that same word, not context for it. An empty
+    -- `arg_lead` means a new argument has begun (or none was typed), leaving
+    -- every parsed argument as context.
     local rest = parsed.args or {}
-    if not cmd_line:match("%s$") then
+    if arg_lead ~= "" then
         rest[#rest] = nil
     end
 
