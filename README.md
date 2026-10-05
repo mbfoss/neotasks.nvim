@@ -22,7 +22,7 @@ the failure the quickfix matcher parsed out of the test output.
 ![Running a task](https://raw.githubusercontent.com/mbfoss/neotasks.nvim/assets/demos/01-run-task.gif)
 
 The task-output panel is built in and the picker is
-[ezpick.nvim](https://github.com/mbfoss/ezpick.nvim), which is optional; see
+[locate.nvim](https://github.com/mbfoss/locate.nvim), which is optional; see
 [Task output](#task-output).
 
 ---
