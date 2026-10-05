@@ -1,13 +1,14 @@
 # neotasks.nvim
 
+> [!NOTE]
+> **Work in progress.** Stable and usable as it stands, but still evolving:
+> changes, including breaking ones, can land at any time. Pin a commit if you
+> need a fixed target.
+
 A project-local **task runner for Neovim**. Build, test, run and debug tasks
 declared once in a TOML file and launched with `:Neotasks`, with dependencies,
 value expressions, quickfix parsing, a live output window, and completion plus
 inline diagnostics while editing the file.
-
-> [!WARNING]
-> **Work in progress.** Usable, but under active development; the
-> configuration format may still change.
 
 ---
 
