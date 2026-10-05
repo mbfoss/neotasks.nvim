@@ -1,8 +1,8 @@
 ---@brief Health check for neotasks.nvim - run with `:checkhealth neotasks`.
 ---
----Reports the Neovim version and the optional companion plugin (ezdap), whether
+---Reports the Neovim version and the optional companion plugin (ndebug), whether
 ---`setup()` has run, the options that differ from the defaults, the tasks file
----found for the cwd, and the registered task types (with the ezdap adapters the
+---found for the cwd, and the registered task types (with the ndebug adapters the
 ---`debug` type may use).
 
 local M = {}
@@ -32,15 +32,15 @@ local function _check_requirements()
         health.error("neotasks.nvim requires Neovim >= 0.11")
     end
 
-    -- Optional. ezdap names its adapters without a setup(), but a `debug` task
+    -- Optional. ndebug names its adapters without a setup(), but a `debug` task
     -- cannot start before one.
-    if not pcall(require, "ezdap") then
-        health.info("ezdap.nvim is not installed, so there is no `debug` task type")
-    elseif require("ezdap").is_setup() then
-        health.ok("ezdap.nvim is installed and set up (the `debug` task type is available)")
+    if not pcall(require, "ndebug") then
+        health.info("ndebug.nvim is not installed, so there is no `debug` task type")
+    elseif require("ndebug").is_setup() then
+        health.ok("ndebug.nvim is installed and set up (the `debug` task type is available)")
     else
-        health.warn("ezdap.nvim is installed but require('ezdap').setup() has not been called", {
-            "Call require('ezdap').setup() from your config; until then no `debug` task can start",
+        health.warn("ndebug.nvim is installed but require('ndebug').setup() has not been called", {
+            "Call require('ndebug').setup() from your config; until then no `debug` task can start",
         })
     end
 end
@@ -162,15 +162,15 @@ local function _check_qfmatchers()
     end
 end
 
----Report the ezdap adapters the `debug` type may use - `debug_adapters`
----resolved against ezdap's registry, since only those get a definition loaded
+---Report the ndebug adapters the `debug` type may use - `debug_adapters`
+---resolved against ndebug's registry, since only those get a definition loaded
 ---and a task on any other adapter refuses to start.
 local function _check_debug_adapters()
     local wanted = require("neotasks.config").current.debug_adapters or {}
     if #wanted == 0 then
         health.warn("`debug_adapters` is empty, so only the built-in `remote` adapter is available", {
             "List the adapters you use, e.g. debug_adapters = { 'codelldb' }",
-            "See the names available with :lua =require('ezdap').available_adapters()",
+            "See the names available with :lua =require('ndebug').available_adapters()",
         })
         return
     end
@@ -178,7 +178,7 @@ local function _check_debug_adapters()
     local ok, usable = pcall(require("neotasks.types.debug").adapters)
     if not ok then
         health.warn(("`debug_adapters` cannot be resolved: %s"):format(tostring(usable)), {
-            "Run :checkhealth ezdap",
+            "Run :checkhealth ndebug",
         })
         return
     end
@@ -186,8 +186,8 @@ local function _check_debug_adapters()
 
     for _, name in ipairs(wanted) do
         if not vim.tbl_contains(usable, name) then
-            health.error(("`%s` is not a registered ezdap adapter"):format(name), {
-                "See the names available with :lua =require('ezdap').available_adapters()",
+            health.error(("`%s` is not a registered ndebug adapter"):format(name), {
+                "See the names available with :lua =require('ndebug').available_adapters()",
             })
         end
     end

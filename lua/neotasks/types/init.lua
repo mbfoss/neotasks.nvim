@@ -105,11 +105,11 @@ function M.build_resolved_schema()
     return s
 end
 
---- True if the companion ezdap plugin is available. Probes its root module,
+--- True if the companion ndebug plugin is available. Probes its root module,
 --- which the `debug` type needs; a plain `require` is side-effect-free here.
 ---@return boolean
-local function _has_ezdap()
-    return (pcall(require, "ezdap"))
+local function _has_ndebug()
+    return (pcall(require, "ndebug"))
 end
 
 -- Built-in task types (loaded lazily on first use)
@@ -117,10 +117,10 @@ M.register("composite",   "neotasks.types.composite")
 M.register("process",     "neotasks.types.process")
 M.register("shell",       "neotasks.types.shell")
 
--- The `debug` type depends on ezdap for its schema, templates, and execution,
--- so it is registered only when ezdap is installed. Without it, neotasks runs
+-- The `debug` type depends on ndebug for its schema, templates, and execution,
+-- so it is registered only when ndebug is installed. Without it, neotasks runs
 -- fine and simply offers no `debug` task type (rather than crashing on use).
-if _has_ezdap() then
+if _has_ndebug() then
     M.register("debug",   "neotasks.types.debug")
 end
 
