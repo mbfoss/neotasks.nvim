@@ -186,11 +186,13 @@ local function _clean_command(args)
 end
 
 ---Drive the task-output panel: `:Neotasks panel` (no subcommand) toggles it,
----and the rest mirror the panel's own window/navigation API.
+---the named subcommands mirror the panel's own window/navigation API, and a
+---bare number selects that tab.
 ---@param args string[]
 local function _panel_command(args)
     local panel = require("neotasks.panel")
     local sub   = args[1]
+    local num   = tonumber(sub)
 
     if sub == nil or sub == "" or sub == "toggle" then
         runview.toggle()
@@ -202,12 +204,9 @@ local function _panel_command(args)
         panel:cycle(1, { enter = true })
     elseif sub == "prev" then
         panel:cycle(-1, { enter = true })
-    elseif sub == "jump" then
-        local n = tonumber(args[2])
-        if not n then
-            notify.warn("jump needs a tab number")
-        elseif not panel:jump(n, { enter = true }) then
-            notify.warn("no tab " .. n)
+    elseif num then
+        if not panel:jump(num, { enter = true }) then
+            notify.warn("no tab " .. num)
         end
     else
         notify.warn("invalid panel subcommand: " .. tostring(sub))
@@ -367,7 +366,7 @@ function M.complete(_cmd, rest, _arg_lead)
         return { "all", "one" }
     end
     if rest[1] == "panel" and #rest == 1 then
-        return { "open", "close", "toggle", "next", "prev", "jump" }
+        return { "open", "close", "toggle", "next", "prev" }
     end
     if rest[1] == "lsp_dump" and #rest == 1 then
         return { "cst", "decode_tree", "data", "schema" }

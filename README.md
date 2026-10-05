@@ -457,7 +457,7 @@ argument it opens the task picker.
 | `:Neotasks cancel`         | Stop **all** running tasks.                                     |
 | `:Neotasks eval [expr]`    | Evaluate an expression (or bare expression name) and echo it.  |
 | `:Neotasks template`       | Insert a task template at the cursor (only in the tasks file). |
-| `:Neotasks panel [sub]`    | Drive the [output panel](#task-output): `open`, `close`, `toggle` (default), `next`, `prev`, `jump N`. |
+| `:Neotasks panel [sub]`    | Drive the [output panel](#task-output): `open`, `close`, `toggle` (default), `next`, `prev`, or a tab number `N`. |
 
 Subcommands and task names complete on `<Tab>`.
 
@@ -483,9 +483,9 @@ and a tab that spawns more than one buffer (its log plus a terminal, say) shows
 a page per buffer in brackets. The panel opens itself on every new run, sized
 by `panel.size`.
 
-- Click a numbered tab, or `:Neotasks panel jump N`, to switch; `next`/`prev`
-  step through the numbering. New output on a tab that is not on screen is
-  flagged unread.
+- Click a numbered tab, or `:Neotasks panel N`, to switch; `next`/`prev` step
+  through the numbering. New output on a tab that is not on screen is flagged
+  unread.
 - A task's terminal outranks its log after the same run, so the log shows until
   there is real output.
 - The panel is one window for the whole editor, not one per Neovim tabpage. It

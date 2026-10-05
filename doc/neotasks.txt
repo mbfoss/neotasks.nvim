@@ -523,7 +523,7 @@ opens the task picker.
                           tasks file).
 
   :Neotasks panel [sub]   Drive the output panel: open, close, toggle
-                          (default), next, prev, jump N.
+                          (default), next, prev, or a tab number `N`.
   ---------------------------------------------------------------------------
 Subcommands and task names complete on `<Tab>`.
 
@@ -551,8 +551,8 @@ dependencies), and a tab that spawns more than one buffer (its log plus a
 terminal, say) shows a page per buffer in brackets. The panel opens itself on
 every new run, sized by `panel.size`.
 
-- Click a numbered tab, or `:Neotasks panel jump N`, to switch; `next`/`prev`
-    step through the numbering. New output on a tab that is not on screen is
+- Click a numbered tab, or `:Neotasks panel N`, to switch; `next`/`prev` step
+    through the numbering. New output on a tab that is not on screen is
     flagged unread.
 - A task’s terminal outranks its log after the same run, so the log shows until
     there is real output.
