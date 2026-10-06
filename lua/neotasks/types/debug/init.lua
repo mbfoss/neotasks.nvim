@@ -186,9 +186,11 @@ local function _mode_branches(ndebug, adapters)
     return branches
 end
 
---- The `debug` task schema. neotasks owns only the framework fields; the DAP
---- vocabulary lives entirely under `parameters` and is projected from ndebug's
---- per-adapter named modes.
+--- The `debug` task schema. neotasks owns only the framework fields; the
+--- vocabulary of a mode's inputs lives entirely under `parameters`, projected
+--- from ndebug's per-adapter named modes. `parameters` holds those inputs in the
+--- authored form, not the DAP launch/attach body: a mode's `build` is what turns
+--- them into that body, which a task never spells out.
 ---@return table
 local function _schema()
     local ndebug         = require("ndebug")
