@@ -534,7 +534,6 @@ fields optional, defaults shown:
 ```lua
 require("neotasks").setup({
   tasks_filename = "neotasks.toml",  -- per-project tasks file (also the project marker)
-  storage_dir    = ".neotasks",  -- per-project state directory
   debug_adapters = {},            -- ndap adapters usable by `debug` tasks
 
   -- the task-output panel

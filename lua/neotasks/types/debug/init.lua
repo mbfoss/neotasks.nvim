@@ -62,7 +62,7 @@ local _scalar_schemas = {
 ---@param input ndap.Input?
 ---@return table
 local function _input_schema(input)
-    input = input or {}
+    input            = input or {}
 
     local collection = input.type == "list" or input.type == "map"
     local entry_type = collection and input.item_type or input.type
@@ -193,7 +193,7 @@ end
 --- them into that body, which a task never spells out.
 ---@return table
 local function _schema()
-    local ndap         = require("ndap")
+    local ndap          = require("ndap")
     local adapters      = M.adapters()
     local mode_branches = _mode_branches(ndap, adapters)
 
@@ -311,7 +311,7 @@ M.schema                = _schema
 M.supports_save_buffers = true
 
 ---@return neotasks.TaskTemplate[]
-M.templates = function()
+M.templates             = function()
     return require("neotasks.types.debug.templates")()
 end
 
