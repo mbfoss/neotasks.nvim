@@ -11,7 +11,7 @@ local notify     = require("neotasks.notify")
 
 local tasks_filename = require("neotasks.config").current.tasks_filename
 
--- The built-in `debug` type projects its schema from the companion `ndebug` plugin,
+-- The built-in `debug` type projects its schema from the companion `ndap` plugin,
 -- absent from the isolated test env. Every run rebuilds the full schema, so
 -- override `debug` with a schemaless stub (no debug tasks are exercised here).
 task_types.register("debug", {

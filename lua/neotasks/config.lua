@@ -24,7 +24,7 @@ local M = {}
 ---@field tasks_filename     string
 ---@field storage_dir        string
 ---@field lsp_debug_commands boolean enable LSP debug dump requests (`:Neotasks lsp_dump`)
----@field debug_adapters     string[] ndebug adapters the `debug` task type may use
+---@field debug_adapters     string[] ndap adapters the `debug` task type may use
 ---@field panel              neotasks.Config.Panel  the task-output panel
 
 ---@type neotasks.Config
@@ -32,8 +32,8 @@ local defaults = {
     tasks_filename     = "neotasks.toml",
     storage_dir        = ".neotasks",
     lsp_debug_commands = false,
-    -- Only the adapters named here (plus ndebug's built-in `remote`, always
-    -- included) are loaded from ndebug (for performance)
+    -- Only the adapters named here (plus ndap's built-in `remote`, always
+    -- included) are loaded from ndap (for performance)
     debug_adapters     = {},
 
     -- The task-output panel: a fixed split whose winbar lists one numbered tab

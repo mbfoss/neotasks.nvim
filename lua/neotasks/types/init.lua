@@ -105,11 +105,11 @@ function M.build_resolved_schema()
     return s
 end
 
---- True if the companion ndebug plugin is available. Probes its root module,
+--- True if the companion ndap plugin is available. Probes its root module,
 --- which the `debug` type needs; a plain `require` is side-effect-free here.
 ---@return boolean
-local function _has_ndebug()
-    return (pcall(require, "ndebug"))
+local function _has_ndap()
+    return (pcall(require, "ndap"))
 end
 
 -- Built-in task types (loaded lazily on first use)
@@ -117,10 +117,10 @@ M.register("composite",   "neotasks.types.composite")
 M.register("process",     "neotasks.types.process")
 M.register("shell",       "neotasks.types.shell")
 
--- The `debug` type depends on ndebug for its schema, templates, and execution,
--- so it is registered only when ndebug is installed. Without it, neotasks runs
+-- The `debug` type depends on ndap for its schema, templates, and execution,
+-- so it is registered only when ndap is installed. Without it, neotasks runs
 -- fine and simply offers no `debug` task type (rather than crashing on use).
-if _has_ndebug() then
+if _has_ndap() then
     M.register("debug",   "neotasks.types.debug")
 end
 

@@ -62,7 +62,7 @@ The task-output panel is built in and the picker is
   root; that file's presence *is* what marks a directory as a project.
 - **Built-in task types**: a program directly (`process`), through a shell
   (`shell`), a group of other tasks (`composite`), or a debug session
-  (`debug`, via [ndebug.nvim](https://github.com/mbfoss/ndebug.nvim)).
+  (`debug`, via [ndap.nvim](https://github.com/mbfoss/ndap.nvim)).
 - **Task dependencies**: `depends_on`, run in `sequence` or `parallel` before
   the task itself.
 - **Concurrency policies**: `wait`, `restart`, `refuse`, `parallel` when a
@@ -80,7 +80,7 @@ The task-output panel is built in and the picker is
 ## Requirements
 
 - Neovim >= 0.11
-- [ndebug.nvim](https://github.com/mbfoss/ndebug.nvim): *optional*, required
+- [ndap.nvim](https://github.com/mbfoss/ndap.nvim): *optional*, required
   only for the `debug` task type.
 
 ## Installation
@@ -89,11 +89,11 @@ The task-output panel is built in and the picker is
 
 ```lua
 vim.pack.add({
-  -- { src = "https://github.com/mbfoss/ndebug.nvim" }, -- optional, only for `debug` tasks
+  -- { src = "https://github.com/mbfoss/ndap.nvim" }, -- optional, only for `debug` tasks
   { src = "https://github.com/mbfoss/neotasks.nvim" },
 })
 
--- require("ndebug").setup()
+-- require("ndap").setup()
 require("neotasks").setup()
 ```
 
@@ -103,7 +103,7 @@ require("neotasks").setup()
 {
   "mbfoss/neotasks.nvim",
   -- optional, only for `debug` tasks:
-  -- dependencies = { "mbfoss/ndebug.nvim" },
+  -- dependencies = { "mbfoss/ndap.nvim" },
   opts = {},
 }
 ```
@@ -232,24 +232,24 @@ depends_order = "sequence"
 
 ### `debug`
 
-A debug session through [ndebug.nvim](https://github.com/mbfoss/ndebug.nvim).
+A debug session through [ndap.nvim](https://github.com/mbfoss/ndap.nvim).
 
-- Available **only when ndebug.nvim is installed**; without it neotasks works
+- Available **only when ndap.nvim is installed**; without it neotasks works
   normally and offers no `debug` type.
 - Usable adapters are those listed in
   [`setup{ debug_adapters }`](#configuration), which defaults to empty, plus
-  ndebug's built-in `remote` adapter, which is always available. Only
-  those adapters' definitions are loaded from ndebug, keeping the schema behind
+  ndap's built-in `remote` adapter, which is always available. Only
+  those adapters' definitions are loaded from ndap, keeping the schema behind
   completion and diagnostics cheap.
 - A task naming an unlisted adapter fails to start, reporting the adapter to
-  add; a name ndebug does not know is reported and skipped.
+  add; a name ndap does not know is reported and skipped.
 
 ```lua
 require("neotasks").setup({ debug_adapters = { "codelldb", "delve" } })
 ```
 
 ```vim
-:lua =require("ndebug").available_adapters()
+:lua =require("ndap").available_adapters()
 ```
 
 Each adapter publishes **named modes** (its launch/attach shapes) picked with
@@ -269,7 +269,7 @@ parameters = { command = "{{ outdir }}/app --flag", cwd = "{{ projectdir }}" }
 | `mode`          | string                   | **Required.** Which of the adapter's named modes to run (e.g. `launch`, `attach`).             |
 | `parameters`    | table                    | Values for the selected `mode`'s inputs. Keys depend on `adapter`/`mode`.                      |
 
-With ndebug available, `mode` completes to the adapter's named modes, and
+With ndap available, `mode` completes to the adapter's named modes, and
 `parameters` is completed and validated against that mode's declared inputs.
 
 ## Shared task options <!-- tag: options -->
@@ -535,7 +535,7 @@ fields optional, defaults shown:
 require("neotasks").setup({
   tasks_filename = "neotasks.toml",  -- per-project tasks file (also the project marker)
   storage_dir    = ".neotasks",  -- per-project state directory
-  debug_adapters = {},            -- ndebug adapters usable by `debug` tasks
+  debug_adapters = {},            -- ndap adapters usable by `debug` tasks
 
   -- the task-output panel
   panel = {
@@ -566,16 +566,16 @@ require("neotasks").setup({
 :checkhealth neotasks
 ```
 
-Reports the Neovim version, the optional companion plugin (ndebug), whether
+Reports the Neovim version, the optional companion plugin (ndap), whether
 `setup()` has run, the options differing from the defaults, the tasks file found
 for the cwd (and whether it loads), and the registered task types with the
-ndebug adapters behind `debug`.
+ndap adapters behind `debug`.
 
 <!-- panvimdoc-ignore-start -->
 
 ## License <!-- tag: license -->
 
 [MIT](LICENSE). Debug support by
-[ndebug.nvim](https://github.com/mbfoss/ndebug.nvim).
+[ndap.nvim](https://github.com/mbfoss/ndap.nvim).
 
 <!-- panvimdoc-ignore-end -->
