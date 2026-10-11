@@ -45,12 +45,24 @@ local project      = require("neotasks.project")
 ---@field add_bufnr  fun(bufnr: integer, opts?: neotasks.AddBufOpts)
 ---@field report     fun(message: string)
 
----@alias neotasks.TaskState "idle"|"running"|"waiting"|"ok"|"failed"|"stopped"
+---Lifecycle phase: a run is `idle` before it exists, `running` or `waiting`
+---while in flight, and `complete` once it has settled. How it went is carried
+---separately in `neotasks.TaskResult`.
+---@alias neotasks.TaskState "idle"|"running"|"waiting"|"complete"
+
+---How a finished run turned out. Meaningful only once the state is `complete`,
+---which is the only transition that sets it.
+---@alias neotasks.TaskResult "succeeded"|"failed"|"stopped"
+
+---A run's phase while it is live, or its result once it has finished. This is
+---what `exec.state` reports, so a single value answers "where is this run at?".
+---@alias neotasks.TaskStatus neotasks.TaskState|neotasks.TaskResult
 
 ---@class neotasks.RunEntry
 ---@field task_name      string
 ---@field task_type      string?
 ---@field state          neotasks.TaskState
+---@field result         neotasks.TaskResult?  set only once `state` is "complete"
 ---@field waiting_for    string[]?
 ---@field reports        neotasks.ProgressEvent[]
 ---@field bufnrs         neotasks.BufEntry[]
@@ -340,12 +352,16 @@ local function _run_task_coro(name, tasks, run_id, primary, expressions, on_star
     _notify_state(run_id)
     _append_report(run_id, "started")
 
-    local function finish(state)
-        entry.state = state
+    ---The only terminal transition: settle the run and record how it turned out.
+    ---@param result neotasks.TaskResult
+    ---@return boolean succeeded
+    local function finish(result)
+        entry.state  = "complete"
+        entry.result = result
         entry.done:emit()
         _notify_state(run_id)
-        _append_report(run_id, state)
-        return state == "ok"
+        _append_report(run_id, result)
+        return result == "succeeded"
     end
 
     -- depends_on
@@ -510,7 +526,7 @@ local function _run_task_coro(name, tasks, run_id, primary, expressions, on_star
     if entry.stop_requested then
         return finish("stopped")
     end
-    return finish(ok and "ok" or "failed")
+    return finish(ok and "succeeded" or "failed")
 end
 
 -- Internal launch
@@ -523,7 +539,8 @@ local function _fail_immediately(task_name, message)
     local run_id     = _gen_run_id()
     _running[run_id] = {
         task_name = task_name,
-        state     = "failed",
+        state     = "complete",
+        result    = "failed",
         bufnrs    = {},
         done      = Signal.new(),
         primary   = true,
@@ -551,8 +568,9 @@ local function _launch(task_name, tasks, run_id, expressions)
         for rid, entry in pairs(_running) do
             if entry.task_name == task_name
                 and (entry.state == "running" or entry.state == "waiting") then
-                orphan      = true
-                entry.state = "failed"
+                orphan       = true
+                entry.state  = "complete"
+                entry.result = "failed"
                 entry.done:emit()
                 _notify_state(rid)
                 _append_report(rid, msg)
@@ -729,7 +747,10 @@ function M.disposable()
     local out = {}
     for run_id, entry in pairs(_running) do
         if M.can_dispose(run_id) then
-            out[#out + 1] = { run_id = run_id, label = entry.task_name .. "  [" .. entry.state .. "]" }
+            -- Disposable runs are always finished, so the result is set; the
+            -- fallback keeps the label honest if that invariant ever slips.
+            local how = entry.result or entry.state
+            out[#out + 1] = { run_id = run_id, label = entry.task_name .. "  [" .. how .. "]" }
         end
     end
     table.sort(out, function(a, b) return a.label < b.label end)
@@ -769,12 +790,14 @@ function M.dispose(run_id)
     return true
 end
 
---- Return the state of the most recent run for a task, or "idle" if none.
+--- Where the most recent run for a task is at: `"running"` while it is in
+--- flight, the run's result once it has finished, or `"idle"` if it never ran.
+--- A `"waiting"` run reports as `"running"` - from the outside it is still going.
 ---@param task_name string
----@return neotasks.TaskState
-function M.state(task_name)
+---@return neotasks.TaskStatus
+function M.status(task_name)
     local best_n = -1
-    local result = "idle" ---@type neotasks.TaskState
+    local result = "idle" ---@type neotasks.TaskStatus
     for id, entry in pairs(_running) do
         if entry.task_name == task_name then
             if entry.state == "running" or entry.state == "waiting" then
@@ -782,7 +805,7 @@ function M.state(task_name)
             end
             if id > best_n then
                 best_n = id
-                result = entry.state
+                result = entry.result or entry.state
             end
         end
     end

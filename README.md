@@ -479,7 +479,7 @@ run, e.g. `neotasks://1/build:log`, alongside whatever buffers the task type spa
 
 Those buffers appear in the built-in output panel: a split at the bottom of the
 editor whose winbar is a flat, numbered list of runs. Each run is one tab, with
-a status badge (`▶` running, `✓` ok, `✗` failed, `⧗` waiting on dependencies),
+a status badge (`▶` running, `✓` succeeded, `✗` failed, `⧗` waiting on dependencies),
 and a tab that spawns more than one buffer (its log plus a terminal, say) shows
 a page per buffer in brackets. The panel opens itself on every new run, sized
 by `panel.size`.

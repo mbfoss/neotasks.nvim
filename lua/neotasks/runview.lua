@@ -31,17 +31,33 @@ local _MAX_LOG_LINES = 10000
 ---@type table<integer, neotasks.runview.View>
 local _views     = {}
 
--- Badges are constant per state: the panel compares them by identity, so reusing
--- the same table keeps a no-op `set_badge` from redrawing the tab bar.
+-- Badges are constant per state/result: the panel compares them by identity, so
+-- reusing the same table keeps a no-op `set_badge` from redrawing the tab bar.
 ---@type table<neotasks.TaskState, neotasks.panel.Badge>
 local _BADGE     = {
     running = { icon = "▶", hl = "NeotasksBadgeHint" },
     waiting = { icon = "⧗", hl = "NeotasksBadgeHint" },
-    ok      = { icon = "✓", hl = "NeotasksBadgeOk" },
-    failed  = { icon = "✗", hl = "NeotasksBadgeErr" },
-    stopped = { icon = "✗", hl = "NeotasksBadgeWarn" },
     idle    = { icon = "●", hl = "NeotasksBadgeMuted" },
 }
+
+-- How a finished run reads depends on its result, not on the mere fact that it is
+-- complete, so the two dimensions key their badges separately.
+---@type table<neotasks.TaskResult, neotasks.panel.Badge>
+local _RESULT_BADGE = {
+    succeeded = { icon = "✓", hl = "NeotasksBadgeOk" },
+    failed    = { icon = "✗", hl = "NeotasksBadgeErr" },
+    stopped   = { icon = "✗", hl = "NeotasksBadgeWarn" },
+}
+
+---The badge for a run: its result's once it is complete, otherwise its state's.
+---@param entry neotasks.RunEntry
+---@return neotasks.panel.Badge
+local function _badge_for(entry)
+    if entry.state == "complete" and entry.result then
+        return _RESULT_BADGE[entry.result]
+    end
+    return _BADGE[entry.state] or _BADGE.idle
+end
 
 ---Whether a run is still going. Mirrored onto the group's `busy` flag, which is
 ---presentation only - the panel prefers a working tab when picking what to show.
@@ -142,7 +158,7 @@ local function _ensure_view(run_id, entry)
     local group = panel:group({
         id    = tostring(run_id),
         label = entry.task_name,
-        badge = _BADGE[entry.state] or _BADGE.idle,
+        badge = _badge_for(entry),
         busy  = _is_active(entry.state),
         focus = entry.primary and "always" or "never",
     })
@@ -161,7 +177,7 @@ local function _on_state_change(run_id, entry)
     local view = _ensure_view(run_id, entry)
 
     if not view.group:is_removed() then
-        view.group:set_badge(_BADGE[entry.state] or _BADGE.idle)
+        view.group:set_badge(_badge_for(entry))
         view.group:set_busy(_is_active(entry.state))
     end
 

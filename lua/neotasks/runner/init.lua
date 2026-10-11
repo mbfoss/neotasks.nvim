@@ -38,11 +38,11 @@ function M.disposable()
     return exec.disposable()
 end
 
---- Return the current execution state of a task.
+--- Return the current status of a task: its state while it runs, else its result.
 ---@param task_name string
----@return neotasks.TaskState
-function M.state(task_name)
-    return exec.state(task_name)
+---@return neotasks.TaskStatus
+function M.status(task_name)
+    return exec.status(task_name)
 end
 
 --- Return the sorted list of task names and a by-name lookup from a TOML file.

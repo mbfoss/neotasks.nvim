@@ -144,14 +144,15 @@ local function wait_until(pred, msg)
     assert.is_true(vim.wait(2000, pred, 10), msg or "condition not met in time")
 end
 
---- Wait for a task's single run to reach `want` and return the entry.
+--- Wait for a task's single run to reach status `want` - its state while live,
+--- its result once finished - and return the entry.
 ---@param name string
----@param want neotasks.TaskState
+---@param want neotasks.TaskStatus
 ---@return neotasks.RunEntry
-local function wait_state(name, want)
+local function wait_status(name, want)
     wait_until(function()
         local e = entry_for(name)
-        return e ~= nil and e.state == want
+        return e ~= nil and (e.result or e.state) == want
     end, ("task %q never reached state %q"):format(name, want))
     return entry_for(name)
 end
@@ -214,14 +215,14 @@ describe("runner exec", function()
         it("runs a task to success", function()
             local path = write_tasks({ "[[tasks]]", 'name="ok"', 'type="t_ok"' })
             exec.run("ok", path)
-            local e = wait_state("ok", "ok")
+            local e = wait_status("ok", "succeeded")
             assert.is_true(has_report(e, "started"))
         end)
 
         it("marks a task failed when its command fails", function()
             local path = write_tasks({ "[[tasks]]", 'name="bad"', 'type="t_fail"' })
             exec.run("bad", path)
-            wait_state("bad", "failed")
+            wait_status("bad", "failed")
         end)
 
         it("marks a task failed on an expression error", function()
@@ -229,7 +230,7 @@ describe("runner exec", function()
                 "[[tasks]]", 'name="e"', 'type="t_expr"', 'cmd="{{ nope }}"',
             })
             exec.run("e", path)
-            local e = wait_state("e", "failed")
+            local e = wait_status("e", "failed")
             assert.is_true(has_report(e, "expression error"))
         end)
     end)
@@ -238,7 +239,7 @@ describe("runner exec", function()
         it("fails immediately for an unknown task", function()
             local path = write_tasks({ "[[tasks]]", 'name="known"', 'type="t_ok"' })
             exec.run("ghost", path)
-            local e = wait_state("ghost", "failed")
+            local e = wait_status("ghost", "failed")
             assert.is_true(has_report(e, "task not found"))
         end)
 
@@ -247,7 +248,7 @@ describe("runner exec", function()
                 "[[tasks]]", 'name="need"', 'type="t_ok"', 'depends_on=["absent"]',
             })
             exec.run("need", path)
-            local e = wait_state("need", "failed")
+            local e = wait_status("need", "failed")
             assert.is_true(has_report(e, "unknown dependency: absent"))
         end)
 
@@ -257,7 +258,7 @@ describe("runner exec", function()
                 "[[tasks]]", 'name="c2"', 'type="t_ok"', 'depends_on=["c1"]',
             })
             exec.run("c1", path)
-            local e = wait_state("c1", "failed")
+            local e = wait_status("c1", "failed")
             assert.is_true(has_report(e, "dependency cycle"))
         end)
 
@@ -269,14 +270,14 @@ describe("runner exec", function()
                 "[[tasks]]", 'name="dup"', 'type="t_ok"',
             })
             exec.run("dup", path)
-            local e = wait_state("dup", "failed")
+            local e = wait_status("dup", "failed")
             assert.is_true(has_report(e, "Duplicate table header"))
         end)
 
         it("fails when the file has no valid tasks table", function()
             local path = write_tasks({ 'title = "nope"' })
             exec.run("whatever", path)
-            local e = wait_state("whatever", "failed")
+            local e = wait_status("whatever", "failed")
             assert.is_true(#e.reports > 0)
         end)
     end)
@@ -289,7 +290,7 @@ describe("runner exec", function()
                 "[[tasks]]", 'name="main"', 'type="t_order"', 'depends_on=["a","b"]',
             })
             exec.run("main", path)
-            wait_state("main", "ok")
+            wait_status("main", "succeeded")
             assert.same({ "a", "b", "main" }, run_order)
         end)
 
@@ -300,7 +301,7 @@ describe("runner exec", function()
                 "[[tasks]]", 'name="m"', 'type="t_order"', 'depends_on=["bad","after"]',
             })
             exec.run("m", path)
-            local m = wait_state("m", "failed")
+            local m = wait_status("m", "failed")
             -- Neither the later dep nor the task itself ran their command.
             assert.same({}, run_order)
             assert.is_true(has_report(m, "dependency 'bad' failed"))
@@ -314,7 +315,7 @@ describe("runner exec", function()
                 'depends_on=["pa","pb"]', 'depends_order="parallel"',
             })
             exec.run("pm", path)
-            wait_state("pm", "ok")
+            wait_status("pm", "succeeded")
             -- Both deps precede the task; order between them is unspecified.
             assert.equal(3, #run_order)
             assert.equal("pm", run_order[3])
@@ -343,14 +344,14 @@ describe("runner exec", function()
         it("saves buffers for a type that opted in", function()
             local path = write_tasks({ "[[tasks]]", 'name="so"', 'type="t_save"', "save_buffers=true" })
             exec.run("so", path)
-            wait_state("so", "ok")
+            wait_status("so", "succeeded")
             assert.equal(1, saves)
         end)
 
         it("leaves save_buffers to a type that did not opt in", function()
             local path = write_tasks({ "[[tasks]]", 'name="own"', 'type="t_own_save"', "save_buffers=true" })
             exec.run("own", path)
-            wait_state("own", "ok")
+            wait_status("own", "succeeded")
             assert.equal(0, saves)
             assert.is_true(own_save.value)
         end)
@@ -360,7 +361,7 @@ describe("runner exec", function()
         it("refuses a second run by default and warns", function()
             local path = write_tasks({ "[[tasks]]", 'name="rf"', 'type="t_block"' })
             exec.run("rf", path)
-            wait_state("rf", "running")
+            wait_status("rf", "running")
 
             exec.run("rf", path)
             assert.equal(1, #entries_for("rf"))
@@ -373,7 +374,7 @@ describe("runner exec", function()
                 "[[tasks]]", 'name="pl"', 'type="t_block"', 'if_running="parallel"',
             })
             exec.run("pl", path)
-            wait_state("pl", "running")
+            wait_status("pl", "running")
 
             exec.run("pl", path)
             wait_until(function() return #entries_for("pl") == 2 end,
@@ -385,7 +386,7 @@ describe("runner exec", function()
                 "[[tasks]]", 'name="wt"', 'type="t_manual"', 'if_running="wait"',
             })
             exec.run("wt", path)
-            wait_state("wt", "running")
+            wait_status("wt", "running")
 
             exec.run("wt", path)
             -- Two instances: one running, one queued (waiting).
@@ -436,7 +437,7 @@ describe("runner exec", function()
             -- The original was stopped (and possibly already disposed).
             wait_until(function()
                 local e1 = exec.get_all()[id1]
-                return e1 == nil or e1.state == "stopped"
+                return e1 == nil or e1.result == "stopped"
             end, "original instance was neither stopped nor disposed")
         end)
     end)
@@ -452,7 +453,7 @@ describe("runner exec", function()
             end)
 
             exec.stop("solo")
-            wait_state("solo", "stopped")
+            wait_status("solo", "stopped")
         end)
 
         it("cancels the in-flight dependency of a task that is only waiting", function()
@@ -473,7 +474,7 @@ describe("runner exec", function()
             wait_until(function()
                 local t, d = entry_for("top"), entry_for("dep")
                 return t ~= nil and d ~= nil
-                    and t.state == "stopped" and d.state == "stopped"
+                    and t.result == "stopped" and d.result == "stopped"
             end)
         end)
     end)
@@ -482,7 +483,7 @@ describe("runner exec", function()
         it("disposes a finished run and invokes the type dispose hook", function()
             local path = write_tasks({ "[[tasks]]", 'name="d"', 'type="t_disposable"' })
             exec.run("d", path)
-            wait_state("d", "ok")
+            wait_status("d", "succeeded")
 
             local ok = exec.dispose(id_for("d"))
             assert.is_true(ok)
@@ -493,7 +494,7 @@ describe("runner exec", function()
         it("refuses to dispose an active run", function()
             local path = write_tasks({ "[[tasks]]", 'name="da"', 'type="t_block"' })
             exec.run("da", path)
-            wait_state("da", "running")
+            wait_status("da", "running")
 
             local ok, err = exec.dispose(id_for("da"))
             assert.is_false(ok)
@@ -563,18 +564,18 @@ describe("runner exec", function()
 
     describe("state", function()
         it("is idle for a task that has never run", function()
-            assert.equal("idle", exec.state("never-run"))
+            assert.equal("idle", exec.status("never-run"))
         end)
 
         it("reports running while active and the terminal state afterwards", function()
             local path = write_tasks({ "[[tasks]]", 'name="st"', 'type="t_manual"' })
             exec.run("st", path)
             local done = wait_manual()
-            assert.equal("running", exec.state("st"))
+            assert.equal("running", exec.status("st"))
 
             done(true)
-            wait_state("st", "ok")
-            assert.equal("ok", exec.state("st"))
+            wait_status("st", "succeeded")
+            assert.equal("succeeded", exec.status("st"))
         end)
     end)
 
@@ -587,7 +588,7 @@ describe("runner exec", function()
             local un3 = exec.on_dispose(function(id) table.insert(disposed_ids, id) end)
 
             exec.run("sig", path)
-            wait_state("sig", "ok")
+            wait_status("sig", "succeeded")
             local id = id_for("sig")
             assert.is_true(state_ids[id])
             assert.is_true(vim.tbl_contains(reports, "started"))
