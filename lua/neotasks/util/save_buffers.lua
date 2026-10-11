@@ -112,7 +112,7 @@ function M.save(project_root, config)
         if #exc_re > 0 and _matches_any(norm_path, exc_re) then goto continue end
 
         local ok = pcall(function()
-            vim.api.nvim_buf_call(bufnr, function() vim.cmd("silent update") end)
+            vim.api.nvim_buf_call(bufnr, function() vim.cmd("update") end)
         end)
         -- An aborted write (a declined W12 "changed on disk" prompt, a BufWriteCmd
         -- that bailed) raises no error, so the modified flag is the real signal.
