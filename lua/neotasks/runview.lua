@@ -40,7 +40,7 @@ local _BADGE     = {
     idle    = { icon = "●", hl = "NeotasksBadgeMuted" },
 }
 
--- How a finished run reads depends on its result, not on the mere fact that it is
+-- How a completed run reads depends on its result, not on the mere fact that it is
 -- complete, so the two dimensions key their badges separately.
 ---@type table<neotasks.TaskResult, neotasks.panel.Badge>
 local _RESULT_BADGE = {
@@ -59,11 +59,11 @@ local function _badge_for(entry)
     return _BADGE[entry.state] or _BADGE.idle
 end
 
----Whether a run is still going. Mirrored onto the group's `busy` flag, which is
+---Whether a run is still working. Drives the group's `busy` flag, which is
 ---presentation only - the panel prefers a working tab when picking what to show.
 ---@param state neotasks.TaskState
 ---@return boolean
-local function _is_active(state)
+local function _is_busy(state)
     return state == "running" or state == "waiting"
 end
 
@@ -159,7 +159,7 @@ local function _ensure_view(run_id, entry)
         id    = tostring(run_id),
         label = entry.task_name,
         badge = _badge_for(entry),
-        busy  = _is_active(entry.state),
+        busy  = _is_busy(entry.state),
         focus = entry.primary and "always" or "never",
     })
     -- Ranked below every task buffer so the run's own output wins the panel as
@@ -173,12 +173,12 @@ end
 
 ---@param run_id integer
 ---@param entry  neotasks.RunEntry
-local function _on_state_change(run_id, entry)
+local function _on_update(run_id, entry)
     local view = _ensure_view(run_id, entry)
 
     if not view.group:is_removed() then
         view.group:set_badge(_badge_for(entry))
-        view.group:set_busy(_is_active(entry.state))
+        view.group:set_busy(_is_busy(entry.state))
     end
 
     for _, be in ipairs(entry.bufnrs) do
@@ -222,7 +222,7 @@ local _subscribed = false
 function M.setup()
     if _subscribed then return end
     _subscribed = true
-    exec.on_state_change(_on_state_change)
+    exec.on_update(_on_update)
     exec.on_report(_on_report)
     exec.on_dispose(_on_dispose)
 end

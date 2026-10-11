@@ -1,6 +1,6 @@
 --- Task execution engine.
 --- Handles TOML loading, dependency resolution, coroutine scheduling,
---- and task state tracking.
+--- and run bookkeeping.
 local async        = require("neotasks.util.async")
 local Signal       = require("neotasks.util.Signal")
 local toml         = require("neotasks.tomltools")
@@ -50,12 +50,12 @@ local project      = require("neotasks.project")
 ---separately in `neotasks.TaskResult`.
 ---@alias neotasks.TaskState "idle"|"running"|"waiting"|"complete"
 
----How a finished run turned out. Meaningful only once the state is `complete`,
+---How a completed run turned out. Meaningful only once the state is `complete`,
 ---which is the only transition that sets it.
 ---@alias neotasks.TaskResult "succeeded"|"failed"|"stopped"
 
----A run's phase while it is live, or its result once it has finished. This is
----what `exec.state` reports, so a single value answers "where is this run at?".
+---A run's phase while it is live, or its result once it has completed - what
+---`exec.status` reports, so one value answers "where is this run at?".
 ---@alias neotasks.TaskStatus neotasks.TaskState|neotasks.TaskResult
 
 ---@class neotasks.RunEntry
@@ -80,7 +80,7 @@ local _run_counter = 0
 
 
 ---@type neotasks.util.Signal<fun(run_id: integer, entry: neotasks.RunEntry)>
-local _on_state_change = Signal.new()
+local _on_update = Signal.new()
 
 ---@type neotasks.util.Signal<fun(run_id: integer, event: neotasks.ProgressEvent)>
 local _on_report = Signal.new()
@@ -95,9 +95,11 @@ local function _gen_run_id()
 end
 
 
+--- Fired whenever a run's presentation changes - its state, its result, or the
+--- buffers it owns. Subscribers re-read the entry rather than tracking deltas.
 ---@param fn fun(run_id: integer, entry: neotasks.RunEntry)
 ---@return fun() cancel
-function M.on_state_change(fn) return _on_state_change:subscribe(fn) end
+function M.on_update(fn) return _on_update:subscribe(fn) end
 
 ---@param fn fun(run_id: integer, event: neotasks.ProgressEvent)
 ---@return fun() cancel
@@ -107,9 +109,9 @@ function M.on_report(fn) return _on_report:subscribe(fn) end
 ---@return fun() cancel
 function M.on_dispose(fn) return _on_dispose:subscribe(fn) end
 
-local function _notify_state(run_id)
+local function _notify_update(run_id)
     local entry = _running[run_id]
-    if entry then _on_state_change:emit(run_id, entry) end
+    if entry then _on_update:emit(run_id, entry) end
 end
 
 ---@param run_id integer
@@ -282,10 +284,10 @@ end
 
 -- Core execution
 
---- Dispose any finished (non-running, non-waiting) runs for a
+--- Dispose any completed (non-running, non-waiting) runs for a
 --- task, so a fresh run replaces its predecessor instead of stacking up.
 ---@param task_name string
-local function _dispose_finished(task_name)
+local function _dispose_completed(task_name)
     local to_dispose = {}
     for rid, e in pairs(_running) do
         if e.task_name == task_name
@@ -334,7 +336,7 @@ local function _run_task_coro(name, tasks, run_id, primary, expressions, on_star
         entry.waiting_for = nil
         if primary then entry.primary = true end
     else
-        _dispose_finished(name)
+        _dispose_completed(name)
 
         run_id = _gen_run_id()
         entry = {
@@ -349,17 +351,17 @@ local function _run_task_coro(name, tasks, run_id, primary, expressions, on_star
         _running[run_id] = entry
         if on_start then on_start(run_id) end
     end
-    _notify_state(run_id)
+    _notify_update(run_id)
     _append_report(run_id, "started")
 
-    ---The only terminal transition: settle the run and record how it turned out.
+    ---The one terminal transition: settle the run and record how it turned out.
     ---@param result neotasks.TaskResult
     ---@return boolean succeeded
     local function finish(result)
         entry.state  = "complete"
         entry.result = result
         entry.done:emit()
-        _notify_state(run_id)
+        _notify_update(run_id)
         _append_report(run_id, result)
         return result == "succeeded"
     end
@@ -377,7 +379,7 @@ local function _run_task_coro(name, tasks, run_id, primary, expressions, on_star
         entry.cancel = function()
             for rid in pairs(dep_runs) do _stop_run(rid) end
         end
-        _notify_state(run_id)
+        _notify_update(run_id)
         _append_report(run_id, "waiting for: " .. table.concat(deps, ", "))
 
         ---@param dep_name string
@@ -415,7 +417,7 @@ local function _run_task_coro(name, tasks, run_id, primary, expressions, on_star
         end
 
         -- The deps cancel is only meaningful while waiting; clear it so a later
-        -- stop targets this task's own run rather than the finished dependencies.
+        -- stop targets this task's own run rather than the completed dependencies.
         entry.cancel = nil
 
         if not deps_ok then
@@ -424,7 +426,7 @@ local function _run_task_coro(name, tasks, run_id, primary, expressions, on_star
 
         entry.state       = "running"
         entry.waiting_for = nil
-        _notify_state(run_id)
+        _notify_update(run_id)
         _append_report(run_id, "dependencies resolved")
     end
 
@@ -482,7 +484,7 @@ local function _run_task_coro(name, tasks, run_id, primary, expressions, on_star
                 label = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t")
             end
             table.insert(entry.bufnrs, { bufnr = bufnr, label = label, priority = opts.priority or 0 })
-            _notify_state(run_id)
+            _notify_update(run_id)
             vim.api.nvim_create_autocmd({ "BufDelete", "BufWipeout" }, {
                 buffer   = bufnr,
                 once     = true,
@@ -493,7 +495,7 @@ local function _run_task_coro(name, tasks, run_id, primary, expressions, on_star
                             break
                         end
                     end
-                    _notify_state(run_id)
+                    _notify_update(run_id)
                 end,
             })
         end,
@@ -535,7 +537,7 @@ end
 ---@param task_name string
 ---@param message   string
 local function _fail_immediately(task_name, message)
-    _dispose_finished(task_name)
+    _dispose_completed(task_name)
     local run_id     = _gen_run_id()
     _running[run_id] = {
         task_name = task_name,
@@ -547,7 +549,7 @@ local function _fail_immediately(task_name, message)
         reports   = {},
     }
     _running[run_id].done:emit()
-    _notify_state(run_id)
+    _notify_update(run_id)
     _append_report(run_id, message)
 end
 
@@ -572,7 +574,7 @@ local function _launch(task_name, tasks, run_id, expressions)
                 entry.state  = "complete"
                 entry.result = "failed"
                 entry.done:emit()
-                _notify_state(rid)
+                _notify_update(rid)
                 _append_report(rid, msg)
             end
         end
@@ -640,7 +642,7 @@ function M.run(task_name, toml_path)
             primary   = true,
             reports   = {},
         }
-        _notify_state(run_id)
+        _notify_update(run_id)
 
         local fns = vim.tbl_map(function(sig)
             return function() async.wait_signal(sig) end
@@ -724,7 +726,7 @@ end
 
 --- Whether a run may be disposed, and why not when it may not. The runner owns
 --- a run's lifetime, so this is the single place that decides; a view asks it
---- rather than keeping a copy of the state that would drift from the truth.
+--- rather than caching a copy that would drift from the truth.
 ---@param run_id integer
 ---@return boolean ok, string? err
 function M.can_dispose(run_id)
@@ -738,16 +740,16 @@ end
 
 ---@class neotasks.DisposableRun
 ---@field run_id integer
----@field label  string  task name and how the run ended, for a picker
+---@field label  string  task name and how the run turned out, for a picker
 
---- Every run that can be disposed right now: the finished ones,
+--- Every run that can be disposed right now: the completed ones,
 --- sorted by label.
 ---@return neotasks.DisposableRun[]
 function M.disposable()
     local out = {}
     for run_id, entry in pairs(_running) do
         if M.can_dispose(run_id) then
-            -- Disposable runs are always finished, so the result is set; the
+            -- Disposable runs are always completed, so the result is set; the
             -- fallback keeps the label honest if that invariant ever slips.
             local how = entry.result or entry.state
             out[#out + 1] = { run_id = run_id, label = entry.task_name .. "  [" .. how .. "]" }
@@ -757,8 +759,9 @@ function M.disposable()
     return out
 end
 
---- Dispose a finished run: invoke the type's dispose hook (if any), delete all
---- tracked buffers, remove the entry from state, and emit the dispose signal.
+--- Dispose a completed run: invoke the type's dispose hook (if any), delete all
+--- tracked buffers, remove the entry from the run registry, and emit the
+--- dispose signal.
 --- Returns false + error string if the run is still active.
 ---
 --- This is the one teardown path. A view never tears a run down itself: it asks
@@ -791,8 +794,8 @@ function M.dispose(run_id)
 end
 
 --- Where the most recent run for a task is at: `"running"` while it is in
---- flight, the run's result once it has finished, or `"idle"` if it never ran.
---- A `"waiting"` run reports as `"running"` - from the outside it is still going.
+--- flight, the run's result once it has completed, or `"idle"` if it never ran.
+--- A `"waiting"` run reports as `"running"`: from outside, it is still going.
 ---@param task_name string
 ---@return neotasks.TaskStatus
 function M.status(task_name)

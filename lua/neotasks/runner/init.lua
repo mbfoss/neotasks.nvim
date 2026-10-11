@@ -17,7 +17,7 @@ function M.stop(task_name)
     exec.stop(task_name)
 end
 
---- Dispose a finished run: delete its buffers and remove it from state.
+--- Dispose a completed run: delete its buffers and drop it from the registry.
 --- Returns false + error string if the run is still active.
 ---@param run_id integer
 ---@return boolean ok, string? err
@@ -38,7 +38,7 @@ function M.disposable()
     return exec.disposable()
 end
 
---- Return the current status of a task: its state while it runs, else its result.
+--- Return a task's current status: its state while it runs, else its result.
 ---@param task_name string
 ---@return neotasks.TaskStatus
 function M.status(task_name)

@@ -152,7 +152,7 @@ local function _stop_all_command()
     end
 end
 
---- Dispose finished runs: `all` (the default) disposes every one, `one`
+--- Dispose completed runs: `all` (the default) disposes every one, `one`
 --- prompts for a single run.
 ---@param args string[]
 local function _clean_command(args)
@@ -169,7 +169,7 @@ local function _clean_command(args)
         return
     end
     if #entries == 0 then
-        notify.warn("no finished tasks to dispose")
+        notify.warn("no completed tasks to dispose")
         return
     end
     local labels = vim.tbl_map(function(e) return e.label end, entries)

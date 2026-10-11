@@ -145,7 +145,7 @@ local function wait_until(pred, msg)
 end
 
 --- Wait for a task's single run to reach status `want` - its state while live,
---- its result once finished - and return the entry.
+--- its result once complete - and return the entry.
 ---@param name string
 ---@param want neotasks.TaskStatus
 ---@return neotasks.RunEntry
@@ -480,7 +480,7 @@ describe("runner exec", function()
     end)
 
     describe("dispose", function()
-        it("disposes a finished run and invokes the type dispose hook", function()
+        it("disposes a completed run and invokes the type dispose hook", function()
             local path = write_tasks({ "[[tasks]]", 'name="d"', 'type="t_disposable"' })
             exec.run("d", path)
             wait_status("d", "succeeded")
@@ -562,12 +562,12 @@ describe("runner exec", function()
         end)
     end)
 
-    describe("state", function()
+    describe("status", function()
         it("is idle for a task that has never run", function()
             assert.equal("idle", exec.status("never-run"))
         end)
 
-        it("reports running while active and the terminal state afterwards", function()
+        it("reports running while active and the result afterwards", function()
             local path = write_tasks({ "[[tasks]]", 'name="st"', 'type="t_manual"' })
             exec.run("st", path)
             local done = wait_manual()
@@ -580,17 +580,17 @@ describe("runner exec", function()
     end)
 
     describe("signals", function()
-        it("emits state-change, report, and dispose events", function()
+        it("emits update, report, and dispose events", function()
             local path = write_tasks({ "[[tasks]]", 'name="sig"', 'type="t_ok"' })
-            local state_ids, reports, disposed_ids = {}, {}, {}
-            local un1 = exec.on_state_change(function(id) state_ids[id] = true end)
+            local update_ids, reports, disposed_ids = {}, {}, {}
+            local un1 = exec.on_update(function(id) update_ids[id] = true end)
             local un2 = exec.on_report(function(_, ev) table.insert(reports, ev.message) end)
             local un3 = exec.on_dispose(function(id) table.insert(disposed_ids, id) end)
 
             exec.run("sig", path)
             wait_status("sig", "succeeded")
             local id = id_for("sig")
-            assert.is_true(state_ids[id])
+            assert.is_true(update_ids[id])
             assert.is_true(vim.tbl_contains(reports, "started"))
 
             assert.is_true(exec.dispose(id))
