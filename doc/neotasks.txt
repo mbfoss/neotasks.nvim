@@ -266,8 +266,16 @@ Each adapter publishes **named modes** (its launch/attach shapes) picked with
     [tasks.debug-app]
     type       = "debug"
     adapter    = "codelldb"
-    mode       = "launch"
+    mode       = "binary"
     parameters = { command = "{{ outdir }}/app --flag", cwd = "{{ projectdir }}" }
+<
+
+A `list` input (such as `command` above) may be written either as a TOML array
+or as one string, which is split into its entries on spaces; quote a word to
+keep its spaces:
+
+>toml
+    parameters = { command = "./app --name='my app'" }
 <
 
   ----------------------------------------------------------------------------
@@ -277,7 +285,7 @@ Each adapter publishes **named modes** (its launch/attach shapes) picked with
                             setup{ debug_adapters } (e.g. codelldb).
 
   mode         string       Required. Which of the adapter’s named modes to
-                            run (e.g. launch, attach).
+                            run (e.g. binary, attach).
 
   parameters   table        Values for the selected mode’s inputs. Keys depend
                             on adapter/mode.

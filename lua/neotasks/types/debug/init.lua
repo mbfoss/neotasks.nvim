@@ -1,6 +1,8 @@
 ---@class neotasks.debug.Module : neotasks.TaskTypeDef
 local M = {}
 
+local str_util = require("neotasks.util.strutil")
+
 --- Names already reported by `M.adapters`, so a misconfigured list warns once
 --- rather than on every schema build.
 ---@type table<string, true>
@@ -56,9 +58,9 @@ local _scalar_schemas = {
 
 --- One declared input as JSON Schema, in the typed authored form: a string is
 --- the command line's form and reaches no document, so it is not spelled out
---- here. A `list` is an array and a `map` an object, their entries typed by
---- `item_type`; `completion` describes one entry either way, and only a
---- written-out set of values can be shown, as `examples`.
+--- here. A `list` is an array or one string, a `map` an object, their entries
+--- typed by `item_type`; `completion` describes one entry either way, and only
+--- a written-out set of values can be shown, as `examples`.
 ---@param input ndap.Input?
 ---@return table
 local function _input_schema(input)
@@ -77,7 +79,7 @@ local function _input_schema(input)
         scalar.examples = vim.deepcopy(completion)
     end
 
-    if input.type == "list" then return { type = "array", items = scalar } end
+    if input.type == "list" then return { type = { "array", "string" }, items = scalar } end
     if input.type == "map" then return { type = "object", additionalProperties = scalar } end
     return scalar
 end
@@ -96,6 +98,18 @@ local function _parameters_schema(ndap, adapter, mode_name)
     for name, input in pairs(ndap.mode_inputs(adapter, mode_name)) do
         local prop = _input_schema(input)
         prop.description = input and input.description
+        if input and input.type == "list" then
+            -- The input never declared the one-string form, so its hover is the
+            -- only place that can explain it. Join it with the separator needed.
+            local note = "May also be written as one string, split on spaces"
+                .. " (quote a word to keep its spaces)."
+            local own = prop.description
+            if own and own ~= "" then
+                prop.description = own .. (own:match("[.!?]$") and " " or ". ") .. note
+            else
+                prop.description = note
+            end
+        end
         props[name] = prop
     end
 
@@ -245,6 +259,35 @@ end
 ---@field mode           string
 ---@field parameters?    table<string, any>
 
+--- The `parameters` as ndap reads them: a `list` written as one string, the
+--- convenience form, splits into entries read through ndap's own reader.
+---@param inputs table<string, ndap.Input>  the mode's declared inputs
+---@param parameters table<string, any>?    the values as authored in the task
+---@return table<string, any> parameters, string? err
+function M.split_list_strings(inputs, parameters)
+    local inputs_registry = require("ndap.run.inputs")
+    local out = vim.deepcopy(parameters or {})
+
+    for name, input in pairs(inputs or {}) do
+        -- A string with no words in it -- empty, or whitespace alone -- is how an
+        -- unset input reads, and stays that rather than split into no entries.
+        local raw   = out[name]
+        local typed = input.type == "list" and type(raw) == "string"
+        if typed and not raw:find("%S") then
+            out[name] = ""
+        elseif typed then
+            local entries = {}
+            for _, word in ipairs(str_util.split_shell_args(raw)) do
+                local entry, err = inputs_registry.parse_entry(input, word)
+                if err then return out, ("parameter %q: %s"):format(name, err) end
+                entries[#entries + 1] = entry
+            end
+            out[name] = entries
+        end
+    end
+    return out
+end
+
 --- Each live run's ndap run handle, by run id, so disposing a run can drop what
 --- it left in ndap. Entries are dropped as the runs are disposed.
 ---@type table<integer, ndap.runner.Run>
@@ -270,11 +313,21 @@ function M.start(task, ctx, on_done)
         return function() end
     end
 
+    -- A `list` parameter may be authored as one string; split it into the entries
+    -- ndap reads, and fail the run when an entry will not read as one.
+    local inputs               = require("ndap").mode_inputs(task.adapter, task.mode)
+    local parameters, split_err = M.split_list_strings(inputs, task.parameters)
+    if split_err then
+        ctx.report(split_err)
+        on_done(false)
+        return function() end
+    end
+
     -- ndap resolves the mode and runs the session; we present the run - its
     -- buffers, its progress and its outcome arrive through these callbacks, and
     -- ndap's own panels never see it. A mode's `build` may prompt the user first,
     -- so the run can still be resolving here; `cancel` calls that off too.
-    local run = require("ndap").run_mode(task.adapter, task.mode, task.parameters, {
+    local run = require("ndap").run_mode(task.adapter, task.mode, parameters, {
         name      = ctx.name,
         add_bufnr = ctx.add_bufnr,
         report    = ctx.report,

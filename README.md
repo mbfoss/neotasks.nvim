@@ -259,14 +259,18 @@ Each adapter publishes **named modes** (its launch/attach shapes) picked with
 [tasks.debug-app]
 type       = "debug"
 adapter    = "codelldb"
-mode       = "launch"
+mode       = "binary"
 parameters = { command = "{{ outdir }}/app --flag", cwd = "{{ projectdir }}" }
 ```
+
+A `list` input (such as `command`) may be written either as a TOML array or as
+one string, which is split into its entries on spaces; quote a word to keep its
+spaces, as in `command = "./app --name='my app'"`.
 
 | Field           | Type                     | Description                                                                                    |
 | --------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
 | `adapter`       | string                   | **Required.** Debug adapter name, from `setup{ debug_adapters }` (e.g. `codelldb`).            |
-| `mode`          | string                   | **Required.** Which of the adapter's named modes to run (e.g. `launch`, `attach`).             |
+| `mode`          | string                   | **Required.** Which of the adapter's named modes to run (e.g. `binary`, `attach`).             |
 | `parameters`    | table                    | Values for the selected `mode`'s inputs. Keys depend on `adapter`/`mode`.                      |
 
 With ndap available, `mode` completes to the adapter's named modes, and

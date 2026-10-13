@@ -7,7 +7,7 @@ local ordered = require("neotasks.util.table_util").ordered
 
 --- Build the `parameters` skeleton for one (adapter, mode): every required
 --- input, sorted. Starting values come from ndap's input registry, so the task
---- is seeded in the authored form the tasks-file schema demands.
+--- is seeded in an authored form the tasks-file schema accepts.
 ---@param ndap ndap.Module
 ---@param adapter string
 ---@param mode_name string
@@ -17,7 +17,14 @@ local function _parameters(ndap, adapter, mode_name)
     local inputs   = ndap.mode_inputs(adapter, mode_name)
     local params, order = {}, {}
     for _, name in ipairs(required) do
-        params[name] = ndap.input_seed(inputs[name])
+        local input = inputs[name]
+        if input and input.type == "list" then
+            -- A list seeds as an empty string: the other authored form, and the
+            -- one that reads as the input unset rather than as no entries.
+            params[name] = ""
+        else
+            params[name] = ndap.input_seed(input)
+        end
         order[#order + 1] = name
     end
     return params, order
