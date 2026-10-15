@@ -88,6 +88,7 @@ lazy.nvim <https://github.com/folke/lazy.nvim>:
       "mbfoss/neotasks.nvim",
       -- optional, only for `debug` tasks:
       -- dependencies = { "mbfoss/ndap.nvim" },
+      lazy = false, -- setup() creates :Neotasks and the tasks-file support
       opts = {},
     }
 <
@@ -270,13 +271,9 @@ Each adapter publishes **named modes** (its launch/attach shapes) picked with
     parameters = { command = "{{ outdir }}/app --flag", cwd = "{{ projectdir }}" }
 <
 
-A `list` input (such as `command` above) may be written either as a TOML array
-or as one string, which is split into its entries on spaces; quote a word to
-keep its spaces:
-
->toml
-    parameters = { command = "./app --name='my app'" }
-<
+A `list` input (such as `command`) may be written either as a TOML array or as
+one string, which is split into its entries on spaces; quote a word to keep its
+spaces, as in `command = "./app --name='my app'"`.
 
   ----------------------------------------------------------------------------
   Field        Type         Description

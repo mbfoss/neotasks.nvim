@@ -104,6 +104,7 @@ require("neotasks").setup()
   "mbfoss/neotasks.nvim",
   -- optional, only for `debug` tasks:
   -- dependencies = { "mbfoss/ndap.nvim" },
+  lazy = false, -- setup() creates :Neotasks and the tasks-file support
   opts = {},
 }
 ```
