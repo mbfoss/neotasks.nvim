@@ -98,8 +98,9 @@ local _WIN_OPTS = {
 
 ---@param win integer
 local function _apply_win_opts(win)
+    local lwo = vim.wo[win][0]
     for name, value in pairs(_WIN_OPTS) do
-        uiutil.win_setlocal(win, name, value)
+        lwo[name] = value
     end
 end
 
@@ -171,7 +172,7 @@ function Panel:_setup_autocmds()
         callback = function()
             local win = vim.api.nvim_get_current_win()
             if not self:_owns_win(win)
-                and vim.wo[win].winbar:find(_BAR_MARK, 1, true) then
+                and vim.wo[win][0].winbar:find(_BAR_MARK, 1, true) then
                 vim.api.nvim_win_call(win, function() vim.cmd(_RESET_OPTS) end)
             end
         end,
@@ -459,9 +460,9 @@ function Panel:_set_win_buf(bufnr)
     local win = self:_any_win()
     if not win then return end
 
-    uiutil.win_setlocal(win, "winfixbuf", false)
+    vim.wo[win][0].winfixbuf = false
     vim.api.nvim_win_set_buf(win, bufnr)
-    uiutil.win_setlocal(win, "winfixbuf", true)
+    vim.wo[win][0].winfixbuf = true
     if vim.bo[bufnr].buftype == "terminal" then
         local last = vim.api.nvim_buf_line_count(bufnr)
         pcall(vim.api.nvim_win_set_cursor, win, { last, 0 })
@@ -777,8 +778,8 @@ function Panel:_refresh_winbar()
 
     -- 'winbar' is global-local: `vim.wo[win].winbar = …` would also write the
     -- hidden global value, and every window without a local winbar would start
-    -- rendering the panel's. Keep it local.
-    uiutil.win_setlocal(win, "winbar", text)
+    -- rendering the panel's. The `[0]` index keeps it local.
+    vim.wo[win][0].winbar = text
 end
 
 -- Navigation

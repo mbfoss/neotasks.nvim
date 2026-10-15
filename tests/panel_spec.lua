@@ -44,7 +44,7 @@ describe("panel", function()
     ---@param win integer
     ---@return string
     local function bar(win)
-        local ok, res = pcall(vim.api.nvim_eval_statusline, vim.wo[win].winbar, {
+        local ok, res = pcall(vim.api.nvim_eval_statusline, vim.wo[win][0].winbar, {
             winid      = win,
             use_winbar = true,
         })
@@ -67,7 +67,7 @@ describe("panel", function()
     ---@param win integer
     ---@return boolean
     local function signed(win)
-        return vim.wo[win].winbar:find(MARK, 1, true) ~= nil
+        return vim.wo[win][0].winbar:find(MARK, 1, true) ~= nil
     end
 
     before_each(function()
@@ -150,7 +150,7 @@ describe("panel", function()
         local log = make_buf({ "run output" })
         p:group({ id = "g1", label = "build" }):page({ buf = log, label = "log", priority = 1 })
         p:jump(1)
-        assert.is_true(vim.wo[p:win()].winfixheight)
+        assert.is_true(vim.wo[p:win()][0].winfixheight)
 
         vim.api.nvim_set_current_win(p:win())
         vim.cmd("split")
@@ -159,8 +159,8 @@ describe("panel", function()
         assert.is_false(p:_owns_win(win))
         assert.is_false(signed(win))
         assert.equals("", bar(win))
-        assert.is_false(vim.wo[win].winfixheight)
-        assert.is_false(vim.wo[win].winfixwidth)
+        assert.is_false(vim.wo[win][0].winfixheight)
+        assert.is_false(vim.wo[win][0].winfixwidth)
     end)
 
     it("leaves a window's own bar alone", function()
@@ -172,11 +172,11 @@ describe("panel", function()
         vim.cmd("split")
         local win = vim.api.nvim_get_current_win()
         local own = "%1@v:lua.SomeUserHandler@X%X"
-        vim.api.nvim_set_option_value("winbar", own, { win = win, scope = "local" })
+        vim.wo[win][0].winbar = own
 
         vim.cmd("doautocmd BufWinEnter")
 
-        assert.equals(own, vim.wo[win].winbar)
+        assert.equals(own, vim.wo[win][0].winbar)
     end)
 
     -- One window for the whole editor, rather than one per tabpage, all of them

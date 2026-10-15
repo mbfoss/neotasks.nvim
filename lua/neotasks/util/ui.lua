@@ -1,25 +1,10 @@
 local M = {}
 
--- `vim.wo[win].opt = val` acts like `:set` (see `:h vim.wo`): it writes the
--- option's global value too, so freshly created windows -- floats especially --
--- inherit our settings. Force `scope = "local"` to confine them to `win`.
----@param win integer
----@param opt string
----@param val any  nil resets the option to its global value
-function M.win_setlocal(win, opt, val)
-    if val == nil then
-        -- the API ignores nil; `:setlocal opt<` resets to the global value
-        vim.api.nvim_win_call(win, function() vim.cmd("setlocal " .. opt .. "<") end)
-        return
-    end
-    vim.api.nvim_set_option_value(opt, val, { win = win, scope = "local" })
-end
-
 local function _is_regular_win(winid)
     if not vim.api.nvim_win_is_valid(winid) then return false end
     local cfg = vim.api.nvim_win_get_config(winid)
-    if cfg.relative ~= "" then return false end      -- skip popups
-    if vim.wo[winid].winfixbuf then return false end -- skip fixed windows
+    if cfg.relative ~= "" then return false end         -- skip popups
+    if vim.wo[winid][0].winfixbuf then return false end -- skip fixed windows
     return true
 end
 
@@ -79,7 +64,7 @@ local function _get_regular_window()
     local newwin = vim.api.nvim_get_current_win()
     -- A split inherits window-local options from its parent, so splitting off a
     -- winfixbuf panel yields a winfixbuf window too; clear it so a file can load.
-    M.win_setlocal(newwin, "winfixbuf", false)
+    vim.wo[newwin][0].winfixbuf = false
     return newwin
 end
 
