@@ -8,14 +8,16 @@ local validator   = require("neotasks.tomltools.validator")
 
 local ADAPTER = "fake"
 
--- The adapter/mode the tests run: a string list, a typed list, a map, and the
--- scalars beside them, so every authored form is exercised.
+-- The adapter/mode the tests run: lists (typed and untyped), a map, and the
+-- scalars beside them, so every authored form is exercised. Every list takes
+-- the one-string form, split on whitespace.
 local INPUTS = {
-    args  = { type = "list", description = "arguments passed to the program" },
-    ports = { type = "list", item_type = "integer" },
-    env   = { type = "map" },
-    cwd   = { type = "string" },
-    flag  = { type = "boolean" },
+    args   = { type = "list", description = "arguments passed to the program" },
+    ports  = { type = "list", item_type = "integer" },
+    ignore = { type = "list" },
+    env    = { type = "map" },
+    cwd    = { type = "string" },
+    flag   = { type = "boolean" },
 }
 
 --- Entry reading as `ndap.run.inputs` documents it: a string entry is itself, an
@@ -125,10 +127,24 @@ describe("debug parameters – a list written as one string", function()
         end)
     end)
 
-    it("keeps a quoted word's spaces in one entry", function()
+    it("splits on whitespace, with no quoting", function()
         with_ndap(function()
             start({ args = [["--flag=a b" --x]] })
-            assert.are.same({ "--flag=a b", "--x" }, ran.parameters.args)
+            assert.are.same({ [["--flag=a]], [[b"]], "--x" }, ran.parameters.args)
+        end)
+    end)
+
+    it("keeps a backslash literal in an entry", function()
+        with_ndap(function()
+            start({ args = [[C:\Users\me\proj]] })
+            assert.are.same({ [[C:\Users\me\proj]] }, ran.parameters.args)
+        end)
+    end)
+
+    it("splits any list, not only a command", function()
+        with_ndap(function()
+            start({ ignore = "**/vendor/** **/node_modules/**" })
+            assert.are.same({ "**/vendor/**", "**/node_modules/**" }, ran.parameters.ignore)
         end)
     end)
 
@@ -235,6 +251,12 @@ describe("debug schema – a list input's authored forms", function()
         local p = prop("args")
         assert.is_truthy(p.description:find("arguments passed to the program", 1, true))
         assert.is_truthy(p.description:find("one string", 1, true))
+    end)
+
+    it("accepts a string for any list", function()
+        local p = prop("ignore")
+        assert.is_true(vim.tbl_contains(p.type, "string"))
+        assert.is_true((validator.validate(p, "**/vendor/** **/node_modules/**")))
     end)
 
     it("leaves a scalar input the plain scalar schema", function()

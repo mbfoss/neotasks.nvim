@@ -101,8 +101,8 @@ local function _parameters_schema(ndap, adapter, mode_name)
         if input and input.type == "list" then
             -- The input never declared the one-string form, so its hover is the
             -- only place that can explain it. Join it with the separator needed.
-            local note = "May also be written as one string, split on spaces"
-                .. " (quote a word to keep its spaces)."
+            local note = "May also be written as one string, split on whitespace"
+                .. " (use the array form for an entry containing spaces)."
             local own = prop.description
             if own and own ~= "" then
                 prop.description = own .. (own:match("[.!?]$") and " " or ". ") .. note
@@ -277,7 +277,7 @@ function M.split_list_strings(inputs, parameters)
             out[name] = ""
         elseif typed then
             local entries = {}
-            for _, word in ipairs(str_util.split_shell_args(raw)) do
+            for _, word in ipairs(str_util.split_words(raw)) do
                 local entry, err = inputs_registry.parse_entry(input, word)
                 if err then return out, ("parameter %q: %s"):format(name, err) end
                 entries[#entries + 1] = entry

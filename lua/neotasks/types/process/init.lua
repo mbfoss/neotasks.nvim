@@ -48,14 +48,14 @@ end
 
 ---@class neotasks.ProcessTask : neotasks.TaskBase
 ---@field save_buffers?     boolean|neotasks.TaskSaveBuffers save modified project buffers before running
----@field command?          string|string[]       command to run directly (string split via shell-word rules, array used as-is)
+---@field command?          string|string[]       command to run directly (string split on whitespace; array used as-is)
 ---@field cwd?              string                working directory used when executing the command
 ---@field env?              table<string,string>  environment variables as a key-value map
 ---@field clear_env?        boolean               pass `env` verbatim without merging the current environment
 ---@field quickfix_matcher? string                name of a quickfix matcher used to parse output
 
 --- The `process` task type: runs a command directly, without a shell. A string
---- command is split into argv via POSIX shell-word rules; an array is used as-is.
+--- command is split into argv on whitespace; an array is used as-is.
 ---@type neotasks.TaskTypeDef & { register_qfmatcher: fun(name: string, fn: neotasks.QfMatcher) }
 local M = {
     register_qfmatcher    = qfmatchers.register,
@@ -86,7 +86,7 @@ local M = {
         ---@type string[]
         local cmd
         if type(command) == "string" then
-            cmd = str_util.split_shell_args(command)
+            cmd = str_util.split_words(command)
             if #cmd == 0 then
                 notify.error("process task '" .. ctx.name .. "': command string is empty")
                 on_done(false)
@@ -155,7 +155,7 @@ local M = {
             command          = {
                 description = "Command to execute directly, without a shell.",
                 oneOf = {
-                    { type = "string", minLength = 1,                       description = "Command string, split into argv via POSIX shell-word rules." },
+                    { type = "string", minLength = 1,                       description = "Command string, split into argv on whitespace." },
                     {
                         type        = "array",
                         minItems    = 1,

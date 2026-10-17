@@ -138,74 +138,22 @@ function M.indent_errors(errors, parent_msg)
 	return errors
 end
 
+---Split a string a task author wrote into words: the argv of a process command,
+---or the entries of a one-string `list`. Whitespace separates words, and nothing
+---else is special -- there is no quoting or escaping, so a quote or backslash is
+---an ordinary character (`\d+` and `C:\Users\me` survive as typed). An entry that
+---contains whitespace must be written in the array form instead.
 ---@param str string
 ---@return string[]
-function M.split_shell_args(str)
-	local args = {}
-	local i = 1
-	local len = #str
-
-	local function skip_ws()
-		while i <= len and str:sub(i, i):match("%s") do
-			i = i + 1
-		end
-	end
-
-	local function add(part)
-		if part ~= "" then table.insert(args, part) end
-	end
-
-	while i <= len do
-		skip_ws()
-		if i > len then break end
-
-		local part = {}
-		local in_quote = nil
-
-		while i <= len do
-			local c = str:sub(i, i)
-			local nxt = str:sub(i + 1, i + 1)
-			if not in_quote and c:match("%s") then break end
-			if not in_quote and (c == '"' or c == "'") then
-				in_quote = c
-				i = i + 1
-				goto continue
-			end
-			if in_quote and c == in_quote then
-				in_quote = nil
-				i = i + 1
-				goto continue
-			end
-			if c == "\\" and i + 1 <= len then
-				local esc = nxt
-				if esc == "\n" then
-					i = i + 2 -- line continuation
-				else
-					table.insert(part, esc)
-					i = i + 2
-				end
-				goto continue
-			end
-
-			table.insert(part, c)
-			i = i + 1
-			::continue::
-		end
-		if in_quote then
-			table.insert(part, 1, in_quote)
-		end
-
-		add(table.concat(part))
-	end
-
-	return args
+function M.split_words(str)
+	return vim.split(str, "%s+", { trimempty = true })
 end
 
 ---@param cmd string|string[]
 ---@return string[]
 function M.cmd_to_string_array(cmd)
 	if type(cmd) == "string" then
-		local arr = M.split_shell_args(cmd)
+		local arr = M.split_words(cmd)
 		assert(type(arr) == "table")
 		return arr
 	elseif type(cmd) == "table" then

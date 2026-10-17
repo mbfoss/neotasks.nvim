@@ -185,7 +185,9 @@ are per-type.
 
 Runs a command **directly, without a shell**.
 
-- A string command is split into argv by POSIX shell-word rules.
+- A string command is split into argv on whitespace. There is no quoting or
+  escaping: a quote or backslash is an ordinary character, so an entry that
+  contains spaces must be written in the array form.
 - An array is used verbatim: no splitting, globbing or shell operators.
 
 ```toml
@@ -199,7 +201,7 @@ quickfix_matcher = "linter"
 
 | Field              | Type                    | Description                                                            |
 | ------------------ | ----------------------- | --------------------------------------------------------------------- |
-| `command`          | string \| string[]      | **Required.** Program + args. String is shell-word split; array as-is. |
+| `command`          | string \| string[]      | **Required.** Program + args. String is split on whitespace; array as-is. |
 | `cwd`              | string                  | Working directory for the command.                                    |
 | `env`              | table\<string,string>   | Environment variables to set.                                         |
 | `clear_env`        | boolean                 | Pass `env` verbatim instead of merging it onto the current env.       |
@@ -264,9 +266,10 @@ mode       = "binary"
 parameters = { command = "{{ outdir }}/app --flag", cwd = "{{ projectdir }}" }
 ```
 
-A `list` input (such as `command`) may be written either as a TOML array or as
-one string, which is split into its entries on spaces; quote a word to keep its
-spaces, as in `command = "./app --name='my app'"`.
+A `list` input may be written either as a TOML array or as one string, split into
+its entries on whitespace. There is no quoting or escaping; an entry containing
+spaces must be written in the array form, as in
+`command = ["./app", "--name=my app"]`.
 
 | Field           | Type                     | Description                                                                                    |
 | --------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
