@@ -9,7 +9,7 @@
 # other plugin that also vendors it. To make collisions impossible the engine is
 # re-namespaced under this plugin:
 #
-#   * it lives at      lua/neotasks/tomltools/
+#   * vendored at      lua/neotasks/tomltools/
 #   * every internal   require("tomltools…")  is rewritten to
 #                      require("neotasks.tomltools…")
 #
@@ -31,8 +31,8 @@ set -euo pipefail
 # --- Configuration -----------------------------------------------------------
 REMOTE_NAME="tomltools"
 REMOTE_URL="https://github.com/mbfoss/tomltools.git"
-UPSTREAM_SUBDIR="lua/tomltools"          # where the library lives upstream
-VENDOR_DIR="lua/neotasks/tomltools"     # where it lives in this plugin
+UPSTREAM_SUBDIR="lua/tomltools"          # upstream path of the library
+VENDOR_DIR="lua/neotasks/tomltools"     # vendored path in this plugin
 LOCK_FILE="scripts/tomltools.lock"
 REF="${1:-main}"
 

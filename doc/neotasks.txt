@@ -384,8 +384,8 @@ BUILT-IN EXPRESSIONS                                        *neotasks-builtin*
 
   cwd                                   The task’s cwd, or the editor cwd.
 
-  projectdir                            Absolute path of the project root (where the
-                                        tasks file lives).
+  projectdir                            Absolute path of the project root (directory
+                                        containing the tasks file).
 
   env(NAME)                             Value of an environment variable.
 

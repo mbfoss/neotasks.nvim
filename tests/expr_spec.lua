@@ -1,7 +1,7 @@
 ---@diagnostic disable: undefined-global, undefined-field, need-check-nil
 -- Unit tests for the pure expression tokenizer + parser
 -- (lua/neotasks/util/expr.lua). These assert AST shape and error messages only;
--- evaluation lives in the runner and is tested separately.
+-- the runner performs evaluation and is tested separately.
 
 local expr = require("neotasks.util.expr")
 

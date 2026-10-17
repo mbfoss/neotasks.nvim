@@ -346,7 +346,7 @@ env     = { API_KEY = "{{ env('API_KEY') }}", REV = "{{ shell('git rev-parse --s
 | `filedir`                               | Absolute directory of the current file.                          |
 | `fileext`                               | Extension (without the dot).                                     |
 | `cwd`                                   | The task's `cwd`, or the editor cwd.                             |
-| `projectdir`                            | Absolute path of the project root (where the tasks file lives).  |
+| `projectdir`                            | Absolute path of the project root (directory containing the tasks file). |
 | `env(NAME)`                             | Value of an environment variable.                                |
 | `shell(CMD)`                            | Stdout of a shell command, trailing newlines stripped.           |
 | `prompt(TEXT, default?, completion?)`   | Ask for input at run time.                                       |

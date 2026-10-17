@@ -140,7 +140,7 @@ reserved for that.
 
 ## Module layout
 
-The grammar lives in **one pure module**: tokenizer + parser producing an AST,
+The grammar is implemented in **one pure module**: tokenizer + parser producing an AST,
 with **no `vim` calls and no evaluation**. Both consumers import it:
 
 - **Runner** ([resolver.lua](../lua/neotasks/runner/resolver.lua)) walks the

@@ -201,7 +201,7 @@ local function _mode_branches(ndap, adapters)
 end
 
 --- The `debug` task schema. neotasks owns only the framework fields; the
---- vocabulary of a mode's inputs lives entirely under `parameters`, projected
+--- vocabulary of a mode's inputs is defined entirely under `parameters`, projected
 --- from ndap's per-adapter named modes. `parameters` holds those inputs in the
 --- authored form, not the DAP launch/attach body: a mode's `build` is what turns
 --- them into that body, which a task never spells out.

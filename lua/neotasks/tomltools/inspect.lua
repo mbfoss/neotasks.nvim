@@ -124,7 +124,7 @@ function M.find_path(text, row, col)
             local hdr_id = cst:first_child_of_kind(tbl_id, _K.TableHeader)
             local keys   = hdr_id and cst:get_keys(hdr_id)
             if keys and #keys >= 2 then
-                -- A dotted [a.b] header lives inside the [[a]] array; treat the
+                -- A dotted [a.b] header sits inside the [[a]] array; treat the
                 -- cursor as being between that array's entries.
                 return { { name = keys[1].value, type = "aot" } }
             elseif keys and #keys == 1 then
