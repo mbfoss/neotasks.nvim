@@ -18,7 +18,7 @@ local expr = require("neotasks.util.expr")
 --- (`"…"` / `'…'`), numbers, booleans, `$1`/`$2` positional macro
 --- arguments, and the `..` concatenation operator. Nesting is function composition
 --- - `upper(env("HOME"))` - so there are no nested `{{}}` slots and no per-context
---- quoting rules. See docs/expression-grammar.md.
+--- quoting rules. See data/docs/expression-grammar.md.
 ---
 --- Because string literals are verbatim, the slot scanner (`_find_span`) skips
 --- their contents (via `expr.skip_string`), so a `}}` inside a string never closes

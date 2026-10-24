@@ -462,7 +462,7 @@ Evaluating an expression against the current project, without running a task:
     :Neotasks eval {{shell('git branch --show-current')}}
 <
 
-Full grammar: docs/expression-grammar.md in the repository.
+Full grammar: data/docs/expression-grammar.md in the repository.
 
 
 ==============================================================================

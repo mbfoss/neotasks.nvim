@@ -5,7 +5,7 @@
 --- runner (to evaluate) and the LSP (to locate the cursor). Keeping it pure lets
 --- the language server import it without dragging in the evaluator.
 ---
---- Grammar (see docs/expression-grammar.md for the full spec):
+--- Grammar (see data/docs/expression-grammar.md for the full spec):
 ---
 ---   expr      = concat
 ---   concat    = primary { ".." primary }        -- stringifying, left-assoc

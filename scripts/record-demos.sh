@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
-# Record the README demos from demo/*.scene with nvim-demo.
+# Record the README demos from data/demo/*.scene with nvim-demo.
 #
 #   scripts/record-demos.sh                       # every scene
-#   scripts/record-demos.sh demo/01-run-task.scene  # just one
+#   scripts/record-demos.sh data/demo/01-run-task.scene  # just one
 #
-# Each scene writes its GIF and cast to demo/out/. Needs nvim, agg and pyte.
+# Each scene writes its GIF and cast to data/demo/out/. Needs nvim, agg and pyte.
 #
 # nvim-demo (https://github.com/mbfoss/nvim-demo-generator) is cloned into
 # $XDG_CACHE_HOME/neotasks.nvim when missing; set NVIM_DEMO to a checkout's
@@ -46,10 +46,10 @@ fi
 export LOCATOR_NVIM=$locator
 
 if [ "$#" -eq 0 ]; then
-    set -- "$root"/demo/*.scene
+    set -- "$root"/data/demo/*.scene
 fi
 
-mkdir -p "$root/demo/out"
+mkdir -p "$root/data/demo/out"
 
 for scene in "$@"; do
     printf '=== %s\n' "$(basename "$scene")"

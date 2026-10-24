@@ -46,5 +46,5 @@ neotasks.nvim.code-workspace
 /.luarocks
 
 # Demo recordings (published on the assets branch) and the fixture's build output
-/demo/out/
-/demo/project/build/
+/data/demo/out/
+/data/demo/project/build/

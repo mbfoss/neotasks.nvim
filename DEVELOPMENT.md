@@ -56,20 +56,20 @@ plugin's own history or a user's `pack/` checkout:
 git show origin/assets:demos/01-run-task.gif > /tmp/01.gif   # look at one
 ```
 
-They are recorded from [`demo/*.scene`](demo/) by
+They are recorded from [`data/demo/*.scene`](data/demo/) by
 [scripts/record-demos.sh](scripts/record-demos.sh), which drives
 [nvim-demo-generator](https://github.com/mbfoss/nvim-demo-generator):
 
 ```sh
 scripts/record-demos.sh                         # every scene
-scripts/record-demos.sh demo/01-run-task.scene  # one scene
+scripts/record-demos.sh data/demo/01-run-task.scene  # one scene
 ```
 
 The script clones nvim-demo-generator and locator.nvim (the optional picker the
 demo uses) into `${XDG_CACHE_HOME:-~/.cache}/neotasks.nvim` when missing;
 `NVIM_DEMO` and `LOCATOR_NVIM` point at existing checkouts instead. Scenes write
-their GIFs and casts to `demo/out/`, which is gitignored, and run against the
-self-contained fixture project in `demo/project/`. To publish a re-recording,
+their GIFs and casts to `data/demo/out/`, which is gitignored, and run against the
+self-contained fixture project in `data/demo/project/`. To publish a re-recording,
 commit the new GIF on `assets`; the README needs no change, the URL is stable.
 
 ## The vendored TOML engine (`tomltools`)

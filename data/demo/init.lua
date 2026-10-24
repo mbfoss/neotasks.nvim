@@ -1,8 +1,8 @@
 -- Minimal, self-contained init for the README recordings.
 local demo = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h")
-local root = vim.fn.fnamemodify(demo .. "/..", ":p")
+local root = vim.fn.fnamemodify(demo .. "/../..", ":p")
 
-vim.opt.rtp:append(demo) -- demo/colors/pastelstone.lua
+vim.opt.rtp:append(demo) -- data/demo/colors/pastelstone.lua
 vim.opt.rtp:append(root) -- the plugin itself
 
 -- nvim-demo launches Neovim with --clean, so enable the filetype machinery the
@@ -68,6 +68,6 @@ if ok then vim.ui.select = select end
 -- Open the tasks file with the cursor after the empty assignment the scene
 -- completes. Reset that line in the buffer so a previous recording's save does
 -- not change the starting point; the fixture on disk stays valid TOML.
-vim.cmd.edit(vim.fn.fnameescape(root .. "demo/project/neotasks.toml"))
+vim.cmd.edit(vim.fn.fnameescape(root .. "data/demo/project/neotasks.toml"))
 vim.api.nvim_buf_set_lines(0, 12, 13, false, { "quickfix_matcher =" })
 vim.api.nvim_win_set_cursor(0, { 13, 19 })
